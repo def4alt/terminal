@@ -1,5 +1,10 @@
 plugins {
+    application
     kotlin("jvm") version "2.1.10"
+}
+
+application {
+    mainClass = "terminal.buffer.TerminalBufferCliKt"
 }
 
 repositories {
@@ -17,4 +22,8 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.named<JavaExec>("run") {
+    standardInput = System.`in`
 }
