@@ -169,7 +169,7 @@ class TerminalBuffer(
 
     private fun writeGrapheme(grapheme: String) {
         normalizeCursor()
-        val displayWidth = grapheme.displayWidth()
+        val displayWidth = measureDisplayWidth(grapheme)
         if (displayWidth == 2 && cursorColumn == width - 1) {
             advanceToNextWritePosition()
         }
@@ -263,28 +263,11 @@ private fun String.toGraphemes(): List<String> {
     return graphemes
 }
 
-private fun String.displayWidth(): Int {
-    val codePoint = codePointAt(0)
-    return if (codePoint.isWideCodePoint()) 2 else 1
-}
-
 private fun String.toCells(attributes: CellAttributes): List<Cell> {
-    val width = displayWidth()
+    val width = measureDisplayWidth(this)
     val cells = mutableListOf(Cell(kind = CellKind.GraphemeStart(this, width), attributes = attributes))
     repeat(width - 1) {
         cells += Cell(kind = CellKind.Continuation, attributes = attributes)
     }
     return cells
-}
-
-private fun Int.isWideCodePoint(): Boolean {
-    return this in 0x1100..0x115F ||
-        this in 0x2E80..0xA4CF ||
-        this in 0xAC00..0xD7A3 ||
-        this in 0xF900..0xFAFF ||
-        this in 0xFE10..0xFE19 ||
-        this in 0xFE30..0xFE6F ||
-        this in 0xFF00..0xFF60 ||
-        this in 0xFFE0..0xFFE6 ||
-        this in 0x1F300..0x1FAFF
 }

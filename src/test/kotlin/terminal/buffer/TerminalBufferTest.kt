@@ -395,6 +395,26 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun wide_cjk_grapheme_has_display_width_two() {
+        assertEquals(2, measureDisplayWidth("界"))
+    }
+
+    @Test
+    fun emoji_modifier_sequence_has_display_width_two() {
+        assertEquals(2, measureDisplayWidth("👍🏻"))
+    }
+
+    @Test
+    fun combining_mark_sequence_has_display_width_one() {
+        assertEquals(1, measureDisplayWidth("e\u0301"))
+    }
+
+    @Test
+    fun flag_sequence_has_display_width_two() {
+        assertEquals(2, measureDisplayWidth("🇵🇱"))
+    }
+
+    @Test
     fun get_screen_line_returns_visible_row_as_plain_string() {
         val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
 

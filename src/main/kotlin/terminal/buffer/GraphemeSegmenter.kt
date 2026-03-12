@@ -33,23 +33,8 @@ fun segmentGraphemes(text: String): List<Grapheme> {
         index += Character.charCount(codePoint)
     }
 
-    return result.map { Grapheme(it.toString(), 1) }
+    return result.map { Grapheme(it.toString(), measureDisplayWidth(it.toString())) }
 }
-
-private fun Int.isCombiningMark(): Boolean {
-    return when (Character.getType(this)) {
-        Character.NON_SPACING_MARK.toInt(),
-        Character.COMBINING_SPACING_MARK.toInt(),
-        Character.ENCLOSING_MARK.toInt(),
-        -> true
-
-        else -> false
-    }
-}
-
-private fun Int.isEmojiModifier(): Boolean = this in 0x1F3FB..0x1F3FF
-
-private fun Int.isRegionalIndicator(): Boolean = this in 0x1F1E6..0x1F1FF
 
 private fun StringBuilder.endsWithRegionalIndicator(): Boolean {
     if (isEmpty()) {
