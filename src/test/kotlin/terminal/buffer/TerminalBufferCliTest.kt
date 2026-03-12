@@ -67,4 +67,66 @@ class TerminalBufferCliTest {
 
         assertFalse(shouldContinue)
     }
+
+    @Test
+    fun execute_cursor_prints_current_position() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("cursor")
+
+        assertTrue(output.toString().contains("Cursor: (0, 0)"))
+    }
+
+    @Test
+    fun execute_set_cursor_moves_cursor() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("set-cursor 2 1")
+        cli.execute("cursor")
+
+        assertTrue(output.toString().contains("Cursor: (2, 1)"))
+    }
+
+    @Test
+    fun execute_move_right_updates_cursor() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("move right 3")
+        cli.execute("cursor")
+
+        assertTrue(output.toString().contains("Cursor: (3, 0)"))
+    }
+
+    @Test
+    fun execute_screen_prints_visible_content_only() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("screen")
+
+        assertTrue(output.toString().contains("Screen:"))
+    }
+
+    @Test
+    fun execute_history_prints_scrollback_plus_screen_content() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("history")
+
+        assertTrue(output.toString().contains("History:"))
+    }
+
+    @Test
+    fun execute_attrs_prints_current_attributes() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("attrs")
+
+        assertTrue(output.toString().contains("fg=default"))
+    }
 }

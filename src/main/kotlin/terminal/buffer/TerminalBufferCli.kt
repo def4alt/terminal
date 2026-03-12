@@ -40,18 +40,58 @@ class TerminalBufferCli {
     }
 
     internal fun execute(commandLine: String): Boolean {
-        return when (commandLine.trim()) {
-            "help" -> {
+        val trimmed = commandLine.trim()
+
+        return when {
+            trimmed == "help" -> {
                 output.append(renderHelp())
                 true
             }
 
-            "show" -> {
+            trimmed == "show" -> {
                 output.append(renderSnapshot(buffer)).append('\n')
                 true
             }
 
-            "quit", "exit" -> false
+            trimmed == "cursor" -> {
+                output.append("Cursor: (${buffer.getCursorColumn()}, ${buffer.getCursorRow()})\n")
+                true
+            }
+
+            trimmed.startsWith("set-cursor ") -> {
+                val parts = trimmed.split(" ")
+                buffer.setCursorPosition(parts[1].toInt(), parts[2].toInt())
+                true
+            }
+
+            trimmed.startsWith("move ") -> {
+                val parts = trimmed.split(" ")
+                val count = parts[2].toInt()
+                when (parts[1]) {
+                    "up" -> buffer.moveCursorUp(count)
+                    "down" -> buffer.moveCursorDown(count)
+                    "left" -> buffer.moveCursorLeft(count)
+                    "right" -> buffer.moveCursorRight(count)
+                }
+                true
+            }
+
+            trimmed == "screen" -> {
+                output.append("Screen:\n").append(buffer.getScreenContent()).append('\n')
+                true
+            }
+
+            trimmed == "history" -> {
+                output.append("History:\n").append(buffer.getHistoryContent()).append('\n')
+                true
+            }
+
+            trimmed == "attrs" -> {
+                output.append("Attributes: ${formatAttributes(buffer.getCurrentAttributes())}\n")
+                true
+            }
+
+            trimmed == "quit" || trimmed == "exit" -> false
             else -> {
                 output.append("Unknown command\n")
                 true
