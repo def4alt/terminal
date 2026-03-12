@@ -2,6 +2,7 @@ package terminal.buffer
 
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class TerminalBufferTest {
@@ -346,5 +347,73 @@ class TerminalBufferTest {
         buffer.writeText("abcdefghi")
 
         assertEquals("abcd\nefgh\ni   ", buffer.getHistoryContent())
+    }
+
+    @Test
+    fun write_text_with_empty_string_does_not_change_content_or_cursor() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("")
+
+        assertEquals("    \n    ", buffer.getScreenContent())
+        assertEquals(0, buffer.getCursorColumn())
+        assertEquals(0, buffer.getCursorRow())
+    }
+
+    @Test
+    fun insert_text_with_empty_string_does_not_change_content_or_cursor() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.insertText("")
+
+        assertEquals("    \n    ", buffer.getScreenContent())
+        assertEquals(0, buffer.getCursorColumn())
+        assertEquals(0, buffer.getCursorRow())
+    }
+
+    @Test
+    fun move_cursor_by_zero_does_not_change_position() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.setCursorPosition(column = 2, row = 1)
+        buffer.moveCursorRight(0)
+        buffer.moveCursorLeft(0)
+        buffer.moveCursorDown(0)
+        buffer.moveCursorUp(0)
+
+        assertEquals(2, buffer.getCursorColumn())
+        assertEquals(1, buffer.getCursorRow())
+    }
+
+    @Test
+    fun bottom_overflow_discards_oldest_scrollback_line_when_at_capacity() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 2)
+
+        buffer.writeText("abcdefghijklmnopq")
+
+        assertEquals("efgh\nijkl\nmnop\nq   ", buffer.getHistoryContent())
+    }
+
+    @Test
+    fun fill_line_preserves_other_rows() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcd")
+        buffer.setCursorPosition(column = 0, row = 1)
+        buffer.fillLine('x')
+
+        assertEquals("abcd", buffer.getScreenLine(0))
+        assertEquals("xxxx", buffer.getScreenLine(1))
+    }
+
+    @Test
+    fun constructor_rejects_non_positive_dimensions() {
+        assertFailsWith<IllegalArgumentException> {
+            TerminalBuffer(width = 0, height = 2, maxScrollbackLines = 5)
+        }
+
+        assertFailsWith<IllegalArgumentException> {
+            TerminalBuffer(width = 2, height = 0, maxScrollbackLines = 5)
+        }
     }
 }

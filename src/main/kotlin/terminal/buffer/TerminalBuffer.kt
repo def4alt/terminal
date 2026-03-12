@@ -5,6 +5,11 @@ class TerminalBuffer(
     val height: Int,
     val maxScrollbackLines: Int,
 ) {
+    init {
+        require(width > 0) { "width must be positive" }
+        require(height > 0) { "height must be positive" }
+    }
+
     private val screen = MutableList(height) { blankLine() }
     private val scrollback = mutableListOf<List<Cell>>()
     private var currentAttributes = CellAttributes()
