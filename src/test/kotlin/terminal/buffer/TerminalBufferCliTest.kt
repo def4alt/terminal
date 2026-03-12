@@ -129,4 +129,88 @@ class TerminalBufferCliTest {
 
         assertTrue(output.toString().contains("fg=default"))
     }
+
+    @Test
+    fun execute_write_updates_screen_content() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("write hello")
+        cli.execute("screen")
+
+        assertTrue(output.toString().contains("hello"))
+    }
+
+    @Test
+    fun execute_insert_updates_screen_content() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("write abc")
+        cli.execute("set-cursor 1 0")
+        cli.execute("insert Z")
+        cli.execute("screen")
+
+        assertTrue(output.toString().contains("aZbc"))
+    }
+
+    @Test
+    fun execute_fill_with_character_updates_current_row() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("fill =")
+        cli.execute("screen")
+
+        assertTrue(output.toString().contains("========"))
+    }
+
+    @Test
+    fun execute_fill_empty_clears_current_row() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("write hello")
+        cli.execute("set-cursor 0 0")
+        cli.execute("fill empty")
+        cli.execute("screen")
+
+        assertTrue(output.toString().contains("        "))
+    }
+
+    @Test
+    fun execute_append_line_scrolls_screen() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("write one")
+        cli.execute("append-line")
+        cli.execute("history")
+
+        assertTrue(output.toString().contains("one"))
+    }
+
+    @Test
+    fun execute_clear_screen_resets_visible_rows_only() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("write hello")
+        cli.execute("clear-screen")
+        cli.execute("screen")
+
+        assertTrue(output.toString().contains("        \n        \n        \n        "))
+    }
+
+    @Test
+    fun execute_clear_all_resets_screen_and_history() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("write hello")
+        cli.execute("clear-all")
+        cli.execute("history")
+
+        assertTrue(output.toString().contains("        \n        \n        \n        "))
+    }
 }

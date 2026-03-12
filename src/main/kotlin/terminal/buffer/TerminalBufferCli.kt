@@ -91,6 +91,37 @@ class TerminalBufferCli {
                 true
             }
 
+            trimmed.startsWith("write ") -> {
+                buffer.writeText(commandLine.substringAfter("write "))
+                true
+            }
+
+            trimmed.startsWith("insert ") -> {
+                buffer.insertText(commandLine.substringAfter("insert "))
+                true
+            }
+
+            trimmed.startsWith("fill ") -> {
+                val value = trimmed.substringAfter("fill ")
+                buffer.fillLine(if (value == "empty") null else value.first())
+                true
+            }
+
+            trimmed == "append-line" -> {
+                buffer.insertEmptyLineAtBottom()
+                true
+            }
+
+            trimmed == "clear-screen" -> {
+                buffer.clearScreen()
+                true
+            }
+
+            trimmed == "clear-all" -> {
+                buffer.clearScreenAndScrollback()
+                true
+            }
+
             trimmed == "quit" || trimmed == "exit" -> false
             else -> {
                 output.append("Unknown command\n")
