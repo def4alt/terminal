@@ -27,7 +27,7 @@ class TerminalBuffer(
     }
 
     fun writeText(text: String) {
-        for (grapheme in text.toGraphemes()) {
+        for (grapheme in segmentGraphemes(text)) {
             writeGrapheme(grapheme)
         }
     }
@@ -37,7 +37,7 @@ class TerminalBuffer(
     }
 
     fun insertText(text: String) {
-        for (grapheme in text.toGraphemes()) {
+        for (grapheme in segmentGraphemes(text)) {
             normalizeCursor()
             val cells = grapheme.toCells(currentAttributes)
             for (cell in cells) {
@@ -167,9 +167,9 @@ class TerminalBuffer(
         }
     }
 
-    private fun writeGrapheme(grapheme: String) {
+    private fun writeGrapheme(grapheme: Grapheme) {
         normalizeCursor()
-        val displayWidth = measureDisplayWidth(grapheme)
+        val displayWidth = grapheme.displayWidth
         if (displayWidth == 2 && cursorColumn == width - 1) {
             advanceToNextWritePosition()
         }
@@ -250,23 +250,9 @@ class TerminalBuffer(
     }
 }
 
-private fun String.toGraphemes(): List<String> {
-    val graphemes = mutableListOf<String>()
-    var index = 0
-
-    while (index < length) {
-        val codePoint = codePointAt(index)
-        graphemes += String(Character.toChars(codePoint))
-        index += Character.charCount(codePoint)
-    }
-
-    return graphemes
-}
-
-private fun String.toCells(attributes: CellAttributes): List<Cell> {
-    val width = measureDisplayWidth(this)
-    val cells = mutableListOf(Cell(kind = CellKind.GraphemeStart(this, width), attributes = attributes))
-    repeat(width - 1) {
+private fun Grapheme.toCells(attributes: CellAttributes): List<Cell> {
+    val cells = mutableListOf(Cell(kind = CellKind.GraphemeStart(text, displayWidth), attributes = attributes))
+    repeat(displayWidth - 1) {
         cells += Cell(kind = CellKind.Continuation, attributes = attributes)
     }
     return cells

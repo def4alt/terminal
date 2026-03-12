@@ -415,6 +415,46 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun write_text_stores_emoji_modifier_sequence_in_one_grapheme_start() {
+        val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("👍🏻")
+
+        assertEquals(CellKind.GraphemeStart("👍🏻", 2), buffer.getScreenCell(0, 0).kind)
+        assertEquals(CellKind.Continuation, buffer.getScreenCell(1, 0).kind)
+    }
+
+    @Test
+    fun write_text_stores_zwj_sequence_in_one_grapheme_start() {
+        val buffer = TerminalBuffer(width = 8, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("👨‍👩‍👧‍👦")
+
+        assertEquals(CellKind.GraphemeStart("👨‍👩‍👧‍👦", 2), buffer.getScreenCell(0, 0).kind)
+        assertEquals(CellKind.Continuation, buffer.getScreenCell(1, 0).kind)
+    }
+
+    @Test
+    fun write_text_stores_combining_mark_sequence_in_one_grapheme_start() {
+        val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("e\u0301")
+
+        assertEquals(CellKind.GraphemeStart("e\u0301", 1), buffer.getScreenCell(0, 0).kind)
+        assertEquals(1, buffer.getCursorColumn())
+    }
+
+    @Test
+    fun cursor_advances_by_grapheme_display_width_not_codepoint_count() {
+        val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("👍🏻a")
+
+        assertEquals(3, buffer.getCursorColumn())
+        assertEquals(0, buffer.getCursorRow())
+    }
+
+    @Test
     fun get_screen_line_returns_visible_row_as_plain_string() {
         val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
 
