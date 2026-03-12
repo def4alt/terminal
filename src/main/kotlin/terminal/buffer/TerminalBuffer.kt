@@ -21,6 +21,13 @@ class TerminalBuffer(
         currentAttributes = attributes
     }
 
+    fun writeText(text: String) {
+        for (character in text) {
+            screen[cursorRow][cursorColumn] = Cell(character = character, attributes = currentAttributes)
+            advanceCursor()
+        }
+    }
+
     fun setCursorPosition(column: Int, row: Int) {
         cursorColumn = column
         cursorRow = row
@@ -49,6 +56,8 @@ class TerminalBuffer(
 
     fun getScreenLine(row: Int): String = lineToString(screen[row])
 
+    fun getScreenCell(column: Int, row: Int): Cell = screen[row][column]
+
     fun getScreenContent(): String = screen.joinToString("\n", transform = ::lineToString)
 
     fun getHistoryContent(): String = (scrollback + screen).joinToString("\n", transform = ::lineToString)
@@ -61,8 +70,32 @@ class TerminalBuffer(
         cell.character?.toString() ?: " "
     }
 
+    private fun advanceCursor() {
+        if (cursorColumn < width - 1) {
+            cursorColumn += 1
+            return
+        }
+
+        cursorColumn = 0
+        if (cursorRow < height - 1) {
+            cursorRow += 1
+            return
+        }
+
+        scrollUpOneLine()
+    }
+
     private fun clampCursor() {
         cursorColumn = cursorColumn.coerceIn(0, width - 1)
         cursorRow = cursorRow.coerceIn(0, height - 1)
+    }
+
+    private fun scrollUpOneLine() {
+        scrollback += screen.removeFirst().toList()
+        if (scrollback.size > maxScrollbackLines) {
+            scrollback.removeFirst()
+        }
+        screen += blankLine()
+        cursorRow = height - 1
     }
 }

@@ -2,6 +2,7 @@ package terminal.buffer
 
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class TerminalBufferTest {
     @Test
@@ -83,5 +84,63 @@ class TerminalBufferTest {
         buffer.setCurrentAttributes(attributes)
 
         assertEquals(attributes, buffer.getCurrentAttributes())
+    }
+
+    @Test
+    fun write_text_overwrites_cells_from_cursor_and_advances_cursor() {
+        val buffer = TerminalBuffer(width = 4, height = 3, maxScrollbackLines = 5)
+
+        buffer.writeText("abc")
+
+        assertEquals("abc ", buffer.getScreenLine(0))
+        assertEquals(3, buffer.getCursorColumn())
+        assertEquals(0, buffer.getCursorRow())
+    }
+
+    @Test
+    fun write_text_uses_current_attributes_for_written_cells_only() {
+        val buffer = TerminalBuffer(width = 4, height = 3, maxScrollbackLines = 5)
+        val attributes = CellAttributes(
+            foreground = TerminalColor.RED,
+            background = TerminalColor.WHITE,
+            styles = setOf(TextStyle.ITALIC),
+        )
+
+        buffer.setCurrentAttributes(attributes)
+        buffer.writeText("A")
+
+        val writtenCell = buffer.getScreenCell(column = 0, row = 0)
+        val untouchedCell = buffer.getScreenCell(column = 1, row = 0)
+
+        assertEquals('A', writtenCell.character)
+        assertEquals(attributes, writtenCell.attributes)
+        assertNull(untouchedCell.character)
+        assertEquals(CellAttributes(), untouchedCell.attributes)
+    }
+
+    @Test
+    fun write_text_continues_on_next_screen_row_when_reaching_line_end() {
+        val buffer = TerminalBuffer(width = 4, height = 3, maxScrollbackLines = 5)
+
+        buffer.setCursorPosition(column = 3, row = 0)
+        buffer.writeText("AB")
+
+        assertEquals("   A", buffer.getScreenLine(0))
+        assertEquals("B   ", buffer.getScreenLine(1))
+        assertEquals(1, buffer.getCursorColumn())
+        assertEquals(1, buffer.getCursorRow())
+    }
+
+    @Test
+    fun write_text_at_bottom_row_scrolls_content_into_scrollback_when_needed() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcdefghi")
+
+        assertEquals("efgh", buffer.getScreenLine(0))
+        assertEquals("i   ", buffer.getScreenLine(1))
+        assertEquals("abcd\nefgh\ni   ", buffer.getHistoryContent())
+        assertEquals(1, buffer.getCursorColumn())
+        assertEquals(1, buffer.getCursorRow())
     }
 }
