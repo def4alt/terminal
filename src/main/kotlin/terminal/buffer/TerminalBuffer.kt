@@ -128,7 +128,7 @@ class TerminalBuffer(
     private fun lineToString(line: List<Cell>): String = line.joinToString("") { cell ->
         when (val kind = cell.kind) {
             CellKind.Empty -> " "
-            CellKind.Continuation -> " "
+            CellKind.Continuation -> ""
             is CellKind.GraphemeStart -> kind.text
         }
     }

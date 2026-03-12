@@ -336,6 +336,15 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun get_screen_line_does_not_render_continuation_cells_as_visible_spaces() {
+        val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("a界b")
+
+        assertEquals("a界b  ", buffer.getScreenLine(0))
+    }
+
+    @Test
     fun move_cursor_right_skips_continuation_cells_of_wide_graphemes() {
         val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
 
@@ -355,7 +364,7 @@ class TerminalBufferTest {
         buffer.setCursorPosition(column = 1, row = 0)
         buffer.insertText("界")
 
-        assertEquals("a界 b  ", buffer.getScreenLine(0))
+        assertEquals("a界b  ", buffer.getScreenLine(0))
         assertEquals(CellKind.GraphemeStart("界", 2), buffer.getScreenCell(column = 1, row = 0).kind)
         assertEquals(CellKind.Continuation, buffer.getScreenCell(column = 2, row = 0).kind)
     }
