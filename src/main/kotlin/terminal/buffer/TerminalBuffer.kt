@@ -87,6 +87,10 @@ class TerminalBuffer(
 
     fun getScreenCell(column: Int, row: Int): Cell = screen[row][column]
 
+    fun getHistoryCell(column: Int, row: Int): Cell = (scrollback + screen)[row][column]
+
+    fun getHistoryLine(row: Int): String = lineToString((scrollback + screen)[row])
+
     fun getScreenContent(): String = screen.joinToString("\n", transform = ::lineToString)
 
     fun getHistoryContent(): String = (scrollback + screen).joinToString("\n", transform = ::lineToString)

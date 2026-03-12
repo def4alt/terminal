@@ -284,4 +284,67 @@ class TerminalBufferTest {
         assertEquals(0, buffer.getCursorColumn())
         assertEquals(0, buffer.getCursorRow())
     }
+
+    @Test
+    fun get_screen_cell_returns_character_and_attributes_for_visible_position() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+        val attributes = CellAttributes(
+            foreground = TerminalColor.MAGENTA,
+            background = TerminalColor.BLACK,
+            styles = setOf(TextStyle.BOLD),
+        )
+
+        buffer.setCurrentAttributes(attributes)
+        buffer.writeText("Q")
+
+        assertEquals(Cell('Q', attributes), buffer.getScreenCell(column = 0, row = 0))
+    }
+
+    @Test
+    fun get_history_cell_returns_character_and_attributes_for_combined_history_position() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcdefghi")
+
+        assertEquals(Cell('a', CellAttributes()), buffer.getHistoryCell(column = 0, row = 0))
+        assertEquals(Cell('e', CellAttributes()), buffer.getHistoryCell(column = 0, row = 1))
+    }
+
+    @Test
+    fun get_screen_line_returns_visible_row_as_plain_string() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcd")
+
+        assertEquals("abcd", buffer.getScreenLine(0))
+    }
+
+    @Test
+    fun get_history_line_returns_combined_row_as_plain_string() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcdefghi")
+
+        assertEquals("abcd", buffer.getHistoryLine(0))
+        assertEquals("efgh", buffer.getHistoryLine(1))
+        assertEquals("i   ", buffer.getHistoryLine(2))
+    }
+
+    @Test
+    fun get_screen_content_returns_visible_rows_joined_by_newlines() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcdef")
+
+        assertEquals("abcd\nef  ", buffer.getScreenContent())
+    }
+
+    @Test
+    fun get_history_content_returns_scrollback_then_screen_joined_by_newlines() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcdefghi")
+
+        assertEquals("abcd\nefgh\ni   ", buffer.getHistoryContent())
+    }
 }
