@@ -74,10 +74,12 @@ representation for a real production terminal emulator.
 - The model favors readability and clean code over aggressive optimization.
 - Cells are immutable values, which makes tests and behavior easier to reason about.
 - Wide characters are modeled explicitly as grapheme-start plus continuation cells rather than as raw chars in isolated cells.
+- Writing now works at grapheme-cluster level instead of raw code point level.
 - Screen and history access are exposed through explicit read methods instead of exposing internal collections.
 - There is no ANSI parser, renderer, or escape-sequence handling in this project.
 - The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
-- Full Unicode grapheme-cluster handling and resize behavior are still future improvements.
+- The implementation now covers common grapheme cases like combining marks, emoji skin-tone modifiers, ZWJ emoji sequences, flags, and wide CJK characters.
+- Full Unicode grapheme-boundary correctness across all edge cases is still a future improvement, along with resize behavior.
 
 ## Example usage in code
 
@@ -140,6 +142,28 @@ quit
 ```
 
 The CLI is intentionally simple: it is a manual playground for the buffer, not a terminal emulator UI.
+
+## Unicode notes
+
+The buffer now stores visible text as grapheme-oriented cells:
+
+- `CellKind.Empty`
+- `CellKind.GraphemeStart(text, displayWidth)`
+- `CellKind.Continuation`
+
+This means a visible grapheme like `界`, `👍🏻`, `🇵🇱`, or `👨‍👩‍👧‍👦` is treated as one logical write unit.
+If it takes two terminal cells, the buffer stores one grapheme-start cell followed by one continuation cell.
+
+The current implementation includes tests for:
+
+- ASCII text
+- combining-mark sequences like `é`
+- emoji modifier sequences like `👍🏻`
+- ZWJ sequences like `👨‍👩‍👧‍👦`
+- flag sequences like `🇵🇱`
+- wide CJK characters like `界`
+
+The segmentation and width logic is pragmatic rather than fully Unicode-complete, but it avoids the broken spacing and codepoint-splitting behavior that the earlier version had.
 
 ## Layout
 
