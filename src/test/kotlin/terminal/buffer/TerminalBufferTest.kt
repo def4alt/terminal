@@ -63,4 +63,25 @@ class TerminalBufferTest {
         assertEquals(0, buffer.getCursorColumn())
         assertEquals(0, buffer.getCursorRow())
     }
+
+    @Test
+    fun current_attributes_default_to_terminal_defaults() {
+        val buffer = TerminalBuffer(width = 4, height = 3, maxScrollbackLines = 5)
+
+        assertEquals(CellAttributes(), buffer.getCurrentAttributes())
+    }
+
+    @Test
+    fun set_current_attributes_changes_attributes_for_future_edits() {
+        val buffer = TerminalBuffer(width = 4, height = 3, maxScrollbackLines = 5)
+        val attributes = CellAttributes(
+            foreground = TerminalColor.GREEN,
+            background = TerminalColor.BLACK,
+            styles = setOf(TextStyle.BOLD, TextStyle.UNDERLINE),
+        )
+
+        buffer.setCurrentAttributes(attributes)
+
+        assertEquals(attributes, buffer.getCurrentAttributes())
+    }
 }

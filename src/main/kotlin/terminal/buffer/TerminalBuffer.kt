@@ -7,12 +7,19 @@ class TerminalBuffer(
 ) {
     private val screen = MutableList(height) { blankLine() }
     private val scrollback = mutableListOf<List<Cell>>()
+    private var currentAttributes = CellAttributes()
     private var cursorColumn = 0
     private var cursorRow = 0
 
     fun getCursorColumn(): Int = cursorColumn
 
     fun getCursorRow(): Int = cursorRow
+
+    fun getCurrentAttributes(): CellAttributes = currentAttributes
+
+    fun setCurrentAttributes(attributes: CellAttributes) {
+        currentAttributes = attributes
+    }
 
     fun setCursorPosition(column: Int, row: Int) {
         cursorColumn = column
