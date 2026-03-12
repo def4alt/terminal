@@ -100,6 +100,20 @@ Run the interactive CLI:
 ./gradlew run
 ```
 
+For actual interactive use, Gradle's progress UI can get in the way.
+These are better options:
+
+```sh
+./gradlew --console=plain -q run
+```
+
+Or install and run the CLI directly:
+
+```sh
+./gradlew installDist
+./build/install/terminal-buffer/bin/terminal-buffer
+```
+
 Example CLI session:
 
 ```text
