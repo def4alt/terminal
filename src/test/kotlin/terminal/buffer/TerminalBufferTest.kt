@@ -174,4 +174,55 @@ class TerminalBufferTest {
         assertEquals("    ", buffer.getScreenLine(1))
         assertEquals(Cell(), buffer.getScreenCell(column = 2, row = 1))
     }
+
+    @Test
+    fun insert_text_shifts_existing_cells_right_from_cursor_position() {
+        val buffer = TerminalBuffer(width = 5, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abc")
+        buffer.setCursorPosition(column = 1, row = 0)
+        buffer.insertText("Z")
+
+        assertEquals("aZbc ", buffer.getScreenLine(0))
+    }
+
+    @Test
+    fun insert_text_wraps_overflow_onto_following_visible_rows() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcd")
+        buffer.writeText("ef")
+        buffer.setCursorPosition(column = 2, row = 0)
+        buffer.insertText("XY")
+
+        assertEquals("abXY", buffer.getScreenLine(0))
+        assertEquals("cdef", buffer.getScreenLine(1))
+    }
+
+    @Test
+    fun insert_text_overflow_at_screen_bottom_pushes_top_rows_into_scrollback() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcd")
+        buffer.writeText("efgh")
+        buffer.setCursorPosition(column = 1, row = 0)
+        buffer.insertText("Z")
+
+        assertEquals("eZfg", buffer.getScreenLine(0))
+        assertEquals("h   ", buffer.getScreenLine(1))
+        assertEquals("abcd\neZfg\nh   ", buffer.getHistoryContent())
+    }
+
+    @Test
+    fun insert_text_moves_cursor_to_position_after_inserted_text() {
+        val buffer = TerminalBuffer(width = 5, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abc")
+        buffer.setCursorPosition(column = 1, row = 0)
+        buffer.insertText("XY")
+
+        assertEquals(3, buffer.getCursorColumn())
+        assertEquals(0, buffer.getCursorRow())
+        assertEquals("aXYbc", buffer.getScreenLine(0))
+    }
 }

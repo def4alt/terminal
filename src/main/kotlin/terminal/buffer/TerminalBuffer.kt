@@ -32,6 +32,13 @@ class TerminalBuffer(
         screen[cursorRow] = MutableList(width) { Cell(character = character, attributes = currentAttributes) }
     }
 
+    fun insertText(text: String) {
+        for (character in text) {
+            insertCellAt(cursorRow, cursorColumn, Cell(character = character, attributes = currentAttributes))
+            advanceCursor()
+        }
+    }
+
     fun setCursorPosition(column: Int, row: Int) {
         cursorColumn = column
         cursorRow = row
@@ -72,6 +79,32 @@ class TerminalBuffer(
 
     private fun lineToString(line: List<Cell>): String = line.joinToString("") { cell ->
         cell.character?.toString() ?: " "
+    }
+
+    private fun insertCellAt(row: Int, column: Int, cell: Cell) {
+        var currentRow = row
+        var currentColumn = column
+        var carry = cell
+
+        while (true) {
+            for (index in currentColumn until width) {
+                val displaced = screen[currentRow][index]
+                screen[currentRow][index] = carry
+                carry = displaced
+            }
+
+            if (carry == Cell()) {
+                return
+            }
+
+            currentColumn = 0
+            if (currentRow < height - 1) {
+                currentRow += 1
+            } else {
+                scrollUpOneLine()
+                currentRow = height - 1
+            }
+        }
     }
 
     private fun advanceCursor() {
