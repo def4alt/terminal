@@ -1,5 +1,7 @@
 package terminal.buffer
 
+import java.io.BufferedReader
+
 fun main() {
     TerminalBufferCli().run()
 }
@@ -23,8 +25,38 @@ fun renderSnapshot(buffer: TerminalBuffer): String = buildString {
 }
 
 class TerminalBufferCli {
+    private val buffer = TerminalBuffer(width = 8, height = 4, maxScrollbackLines = 20)
+
+    constructor()
+
+    constructor(output: Appendable) {
+        this.output = output
+    }
+
+    private var output: Appendable = System.out
+
     fun run() {
-        print(renderHelp())
+        output.append(renderHelp())
+    }
+
+    internal fun execute(commandLine: String): Boolean {
+        return when (commandLine.trim()) {
+            "help" -> {
+                output.append(renderHelp())
+                true
+            }
+
+            "show" -> {
+                output.append(renderSnapshot(buffer)).append('\n')
+                true
+            }
+
+            "quit", "exit" -> false
+            else -> {
+                output.append("Unknown command\n")
+                true
+            }
+        }
     }
 }
 

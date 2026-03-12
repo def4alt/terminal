@@ -1,6 +1,7 @@
 package terminal.buffer
 
 import org.junit.jupiter.api.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TerminalBufferCliTest {
@@ -33,5 +34,37 @@ class TerminalBufferCliTest {
         val snapshot = renderSnapshot(buffer)
 
         assertTrue(snapshot.contains("    \n    "))
+    }
+
+    @Test
+    fun execute_help_writes_help_text_and_continues() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        val shouldContinue = cli.execute("help")
+
+        assertTrue(shouldContinue)
+        assertTrue(output.toString().contains("Available commands:"))
+    }
+
+    @Test
+    fun execute_show_writes_full_snapshot_and_continues() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        val shouldContinue = cli.execute("show")
+
+        assertTrue(shouldContinue)
+        assertTrue(output.toString().contains("Screen:"))
+        assertTrue(output.toString().contains("History:"))
+    }
+
+    @Test
+    fun execute_quit_returns_false_to_end_session() {
+        val cli = TerminalBufferCli(output = StringBuilder())
+
+        val shouldContinue = cli.execute("quit")
+
+        assertFalse(shouldContinue)
     }
 }
