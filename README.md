@@ -37,7 +37,7 @@ flowchart TD
 - `TerminalBuffer` supports configurable width, height, and maximum scrollback size.
 - The project now includes an interactive CLI for manually exercising the buffer.
 - The buffer stores screen content separately from scrollback history.
-- Each cell stores a character plus foreground color, background color, and style flags.
+- Each cell stores a `CellKind` plus foreground color, background color, and style flags.
 - The buffer tracks current attributes that are applied to future edits.
 - Cursor position can be read, set, and moved with bounds clamping.
 - Editing supports overwrite writes, insert writes, line fill, bottom-line insertion, screen clear, and screen+scrollback clear.
@@ -50,6 +50,15 @@ The implementation keeps the model small on purpose.
 `TerminalBuffer` owns the mutable state: screen lines, scrollback lines, current attributes,
 and cursor position. `Cell` and `CellAttributes` are immutable value types so written content
 keeps the attributes it had at write time.
+
+The cell model now uses three explicit states:
+
+- `CellKind.Empty`
+- `CellKind.GraphemeStart(text, displayWidth)`
+- `CellKind.Continuation`
+
+That lets the buffer represent both normal single-cell text and wide characters more cleanly.
+A wide grapheme is stored as one lead cell plus one continuation cell.
 
 The visible screen is stored as a fixed-height list of lines. Each line contains a fixed number
 of cells. Scrollback is stored as a bounded FIFO list of lines. When content moves past the bottom
@@ -64,10 +73,11 @@ representation for a real production terminal emulator.
 - The project is delivered as a library plus a simple CLI, not a full terminal app. The spec asks for the terminal buffer core data structure, and the tests still act as the main behavior documentation.
 - The model favors readability and clean code over aggressive optimization.
 - Cells are immutable values, which makes tests and behavior easier to reason about.
+- Wide characters are modeled explicitly as grapheme-start plus continuation cells rather than as raw chars in isolated cells.
 - Screen and history access are exposed through explicit read methods instead of exposing internal collections.
 - There is no ANSI parser, renderer, or escape-sequence handling in this project.
 - The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
-- Wide characters and resize behavior are not implemented yet; they are listed as future improvements.
+- Full Unicode grapheme-cluster handling and resize behavior are still future improvements.
 
 ## Example usage in code
 
@@ -136,6 +146,7 @@ The CLI is intentionally simple: it is a manual playground for the buffer, not a
 - `src/main/kotlin/terminal/buffer/TerminalBuffer.kt` - main buffer implementation
 - `src/main/kotlin/terminal/buffer/TerminalBufferCli.kt` - interactive CLI and command handling
 - `src/main/kotlin/terminal/buffer/Cell.kt` - cell value type
+- `src/main/kotlin/terminal/buffer/CellKind.kt` - empty, grapheme-start, and continuation cell states
 - `src/main/kotlin/terminal/buffer/CellAttributes.kt` - foreground/background/style attributes
 - `src/main/kotlin/terminal/buffer/TerminalColor.kt` - 16-color terminal palette plus default
 - `src/main/kotlin/terminal/buffer/TextStyle.kt` - supported text styles
