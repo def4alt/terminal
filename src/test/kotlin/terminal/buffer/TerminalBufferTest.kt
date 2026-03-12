@@ -3,14 +3,13 @@ package terminal.buffer
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
 
 class TerminalBufferTest {
     @Test
-    fun cell_defaults_to_blank_character_and_default_attributes() {
+    fun cell_defaults_to_empty_kind_and_default_attributes() {
         val cell = Cell()
 
-        assertEquals(null, cell.character)
+        assertEquals(CellKind.Empty, cell.kind)
         assertEquals(TerminalColor.DEFAULT, cell.attributes.foreground)
         assertEquals(TerminalColor.DEFAULT, cell.attributes.background)
         assertEquals(emptySet(), cell.attributes.styles)
@@ -113,9 +112,9 @@ class TerminalBufferTest {
         val writtenCell = buffer.getScreenCell(column = 0, row = 0)
         val untouchedCell = buffer.getScreenCell(column = 1, row = 0)
 
-        assertEquals('A', writtenCell.character)
+        assertEquals(CellKind.GraphemeStart("A", 1), writtenCell.kind)
         assertEquals(attributes, writtenCell.attributes)
-        assertNull(untouchedCell.character)
+        assertEquals(CellKind.Empty, untouchedCell.kind)
         assertEquals(CellAttributes(), untouchedCell.attributes)
     }
 
@@ -159,9 +158,9 @@ class TerminalBufferTest {
         buffer.fillLine('x')
 
         assertEquals("xxxx", buffer.getScreenLine(1))
-        assertEquals(Cell('x', attributes), buffer.getScreenCell(column = 0, row = 1))
-        assertEquals(Cell('x', attributes), buffer.getScreenCell(column = 3, row = 1))
-    }
+        assertEquals(Cell(CellKind.GraphemeStart("x", 1), attributes), buffer.getScreenCell(column = 0, row = 1))
+        assertEquals(Cell(CellKind.GraphemeStart("x", 1), attributes), buffer.getScreenCell(column = 3, row = 1))
+        }
 
     @Test
     fun fill_line_with_null_clears_current_row_to_blank_cells() {
@@ -298,7 +297,7 @@ class TerminalBufferTest {
         buffer.setCurrentAttributes(attributes)
         buffer.writeText("Q")
 
-        assertEquals(Cell('Q', attributes), buffer.getScreenCell(column = 0, row = 0))
+        assertEquals(Cell(CellKind.GraphemeStart("Q", 1), attributes), buffer.getScreenCell(column = 0, row = 0))
     }
 
     @Test
@@ -307,8 +306,33 @@ class TerminalBufferTest {
 
         buffer.writeText("abcdefghi")
 
-        assertEquals(Cell('a', CellAttributes()), buffer.getHistoryCell(column = 0, row = 0))
-        assertEquals(Cell('e', CellAttributes()), buffer.getHistoryCell(column = 0, row = 1))
+        assertEquals(Cell(CellKind.GraphemeStart("a", 1), CellAttributes()), buffer.getHistoryCell(column = 0, row = 0))
+        assertEquals(Cell(CellKind.GraphemeStart("e", 1), CellAttributes()), buffer.getHistoryCell(column = 0, row = 1))
+    }
+
+    @Test
+    fun write_text_stores_wide_grapheme_start_and_continuation_cells() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("界")
+
+        assertEquals(CellKind.GraphemeStart("界", 2), buffer.getScreenCell(column = 0, row = 0).kind)
+        assertEquals(CellKind.Continuation, buffer.getScreenCell(column = 1, row = 0).kind)
+        assertEquals(2, buffer.getCursorColumn())
+    }
+
+    @Test
+    fun write_text_wraps_wide_grapheme_when_only_one_cell_remains() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.setCursorPosition(column = 3, row = 0)
+        buffer.writeText("界")
+
+        assertEquals("    ", buffer.getScreenLine(0))
+        assertEquals(CellKind.GraphemeStart("界", 2), buffer.getScreenCell(column = 0, row = 1).kind)
+        assertEquals(CellKind.Continuation, buffer.getScreenCell(column = 1, row = 1).kind)
+        assertEquals(2, buffer.getCursorColumn())
+        assertEquals(1, buffer.getCursorRow())
     }
 
     @Test

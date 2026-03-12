@@ -27,20 +27,23 @@ class TerminalBuffer(
     }
 
     fun writeText(text: String) {
-        for (character in text) {
-            screen[cursorRow][cursorColumn] = Cell(character = character, attributes = currentAttributes)
-            advanceCursor()
+        for (grapheme in text.toGraphemes()) {
+            writeGrapheme(grapheme)
         }
     }
 
     fun fillLine(character: Char?) {
-        screen[cursorRow] = MutableList(width) { Cell(character = character, attributes = currentAttributes) }
+        screen[cursorRow] = MutableList(width) { fillCell(character) }
     }
 
     fun insertText(text: String) {
-        for (character in text) {
-            insertCellAt(cursorRow, cursorColumn, Cell(character = character, attributes = currentAttributes))
-            advanceCursor()
+        for (grapheme in text.toGraphemes()) {
+            normalizeCursor()
+            val cells = grapheme.toCells(currentAttributes)
+            for (cell in cells) {
+                insertCellAt(cursorRow, cursorColumn, cell)
+                advanceCursorOneCell()
+            }
         }
     }
 
@@ -66,26 +69,44 @@ class TerminalBuffer(
         cursorColumn = column
         cursorRow = row
         clampCursor()
+        normalizeCursor()
     }
 
     fun moveCursorUp(count: Int = 1) {
         cursorRow -= count
         clampCursor()
+        normalizeCursor()
     }
 
     fun moveCursorDown(count: Int = 1) {
         cursorRow += count
         clampCursor()
+        normalizeCursor()
     }
 
     fun moveCursorLeft(count: Int = 1) {
-        cursorColumn -= count
+        repeat(count) {
+            if (cursorColumn > 0) {
+                cursorColumn -= 1
+            }
+            while (cursorColumn > 0 && screen[cursorRow][cursorColumn].kind == CellKind.Continuation) {
+                cursorColumn -= 1
+            }
+        }
         clampCursor()
     }
 
     fun moveCursorRight(count: Int = 1) {
-        cursorColumn += count
+        repeat(count) {
+            if (cursorColumn < width - 1) {
+                cursorColumn += 1
+            }
+            while (cursorColumn < width - 1 && screen[cursorRow][cursorColumn].kind == CellKind.Continuation) {
+                cursorColumn += 1
+            }
+        }
         clampCursor()
+        normalizeCursor()
     }
 
     fun getScreenLine(row: Int): String = lineToString(screen[row])
@@ -105,7 +126,19 @@ class TerminalBuffer(
     private fun blankLine(): MutableList<Cell> = MutableList(width) { blankCell() }
 
     private fun lineToString(line: List<Cell>): String = line.joinToString("") { cell ->
-        cell.character?.toString() ?: " "
+        when (val kind = cell.kind) {
+            CellKind.Empty -> " "
+            CellKind.Continuation -> " "
+            is CellKind.GraphemeStart -> kind.text
+        }
+    }
+
+    private fun fillCell(character: Char?): Cell {
+        if (character == null) {
+            return blankCell()
+        }
+
+        return Cell(kind = CellKind.GraphemeStart(character.toString(), 1), attributes = currentAttributes)
     }
 
     private fun insertCellAt(row: Int, column: Int, cell: Cell) {
@@ -134,12 +167,30 @@ class TerminalBuffer(
         }
     }
 
-    private fun advanceCursor() {
+    private fun writeGrapheme(grapheme: String) {
+        normalizeCursor()
+        val displayWidth = grapheme.displayWidth()
+        if (displayWidth == 2 && cursorColumn == width - 1) {
+            advanceToNextWritePosition()
+        }
+
+        for (cell in grapheme.toCells(currentAttributes)) {
+            clearGraphemeAt(cursorRow, cursorColumn)
+            screen[cursorRow][cursorColumn] = cell
+            advanceCursorOneCell()
+        }
+    }
+
+    private fun advanceCursorOneCell() {
         if (cursorColumn < width - 1) {
             cursorColumn += 1
             return
         }
 
+        advanceToNextWritePosition()
+    }
+
+    private fun advanceToNextWritePosition() {
         cursorColumn = 0
         if (cursorRow < height - 1) {
             cursorRow += 1
@@ -154,6 +205,41 @@ class TerminalBuffer(
         cursorRow = cursorRow.coerceIn(0, height - 1)
     }
 
+    private fun normalizeCursor() {
+        while (cursorColumn > 0 && screen[cursorRow][cursorColumn].kind == CellKind.Continuation) {
+            cursorColumn -= 1
+        }
+    }
+
+    private fun clearGraphemeAt(row: Int, column: Int) {
+        val line = screen[row]
+        when (line[column].kind) {
+            CellKind.Empty -> return
+            CellKind.Continuation -> {
+                var lead = column - 1
+                while (lead >= 0 && line[lead].kind == CellKind.Continuation) {
+                    lead -= 1
+                }
+                clearFromLead(line, lead)
+            }
+
+            is CellKind.GraphemeStart -> clearFromLead(line, column)
+        }
+    }
+
+    private fun clearFromLead(line: MutableList<Cell>, lead: Int) {
+        if (lead !in line.indices) {
+            return
+        }
+
+        val cell = line[lead]
+        line[lead] = blankCell()
+        val kind = cell.kind
+        if (kind is CellKind.GraphemeStart && kind.displayWidth == 2 && lead + 1 in line.indices) {
+            line[lead + 1] = blankCell()
+        }
+    }
+
     private fun scrollUpOneLine() {
         scrollback += screen.removeFirst().toList()
         if (scrollback.size > maxScrollbackLines) {
@@ -162,4 +248,43 @@ class TerminalBuffer(
         screen += blankLine()
         cursorRow = height - 1
     }
+}
+
+private fun String.toGraphemes(): List<String> {
+    val graphemes = mutableListOf<String>()
+    var index = 0
+
+    while (index < length) {
+        val codePoint = codePointAt(index)
+        graphemes += String(Character.toChars(codePoint))
+        index += Character.charCount(codePoint)
+    }
+
+    return graphemes
+}
+
+private fun String.displayWidth(): Int {
+    val codePoint = codePointAt(0)
+    return if (codePoint.isWideCodePoint()) 2 else 1
+}
+
+private fun String.toCells(attributes: CellAttributes): List<Cell> {
+    val width = displayWidth()
+    val cells = mutableListOf(Cell(kind = CellKind.GraphemeStart(this, width), attributes = attributes))
+    repeat(width - 1) {
+        cells += Cell(kind = CellKind.Continuation, attributes = attributes)
+    }
+    return cells
+}
+
+private fun Int.isWideCodePoint(): Boolean {
+    return this in 0x1100..0x115F ||
+        this in 0x2E80..0xA4CF ||
+        this in 0xAC00..0xD7A3 ||
+        this in 0xF900..0xFAFF ||
+        this in 0xFE10..0xFE19 ||
+        this in 0xFE30..0xFE6F ||
+        this in 0xFF00..0xFF60 ||
+        this in 0xFFE0..0xFFE6 ||
+        this in 0x1F300..0x1FAFF
 }
