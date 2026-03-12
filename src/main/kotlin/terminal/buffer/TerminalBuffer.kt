@@ -39,6 +39,10 @@ class TerminalBuffer(
         }
     }
 
+    fun insertEmptyLineAtBottom() {
+        scrollUpOneLine()
+    }
+
     fun setCursorPosition(column: Int, row: Int) {
         cursorColumn = column
         cursorRow = row

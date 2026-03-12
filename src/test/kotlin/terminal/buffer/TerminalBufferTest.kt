@@ -225,4 +225,28 @@ class TerminalBufferTest {
         assertEquals(0, buffer.getCursorRow())
         assertEquals("aXYbc", buffer.getScreenLine(0))
     }
+
+    @Test
+    fun insert_empty_line_at_bottom_scrolls_top_visible_line_into_scrollback() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcd")
+        buffer.writeText("ef")
+        buffer.insertEmptyLineAtBottom()
+
+        assertEquals("ef  ", buffer.getScreenLine(0))
+        assertEquals("    ", buffer.getScreenLine(1))
+        assertEquals("abcd\nef  \n    ", buffer.getHistoryContent())
+    }
+
+    @Test
+    fun scrollback_is_trimmed_to_maximum_size() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 1)
+
+        buffer.writeText("abcd")
+        buffer.writeText("efgh")
+        buffer.insertEmptyLineAtBottom()
+
+        assertEquals("efgh\n    \n    ", buffer.getHistoryContent())
+    }
 }
