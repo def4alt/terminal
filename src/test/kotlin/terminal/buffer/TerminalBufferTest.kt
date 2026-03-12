@@ -455,6 +455,78 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun insert_text_keeps_emoji_modifier_sequence_together() {
+        val buffer = TerminalBuffer(width = 8, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("ab")
+        buffer.setCursorPosition(column = 1, row = 0)
+        buffer.insertText("👍🏻")
+
+        assertEquals(CellKind.GraphemeStart("👍🏻", 2), buffer.getScreenCell(1, 0).kind)
+        assertEquals(CellKind.Continuation, buffer.getScreenCell(2, 0).kind)
+        assertEquals("a👍🏻b    ", buffer.getScreenLine(0))
+    }
+
+    @Test
+    fun insert_text_keeps_zwj_sequence_together() {
+        val buffer = TerminalBuffer(width = 8, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("ab")
+        buffer.setCursorPosition(column = 1, row = 0)
+        buffer.insertText("👨‍👩‍👧‍👦")
+
+        assertEquals(CellKind.GraphemeStart("👨‍👩‍👧‍👦", 2), buffer.getScreenCell(1, 0).kind)
+        assertEquals(CellKind.Continuation, buffer.getScreenCell(2, 0).kind)
+    }
+
+    @Test
+    fun insert_before_wide_grapheme_does_not_split_existing_cluster() {
+        val buffer = TerminalBuffer(width = 8, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("界b")
+        buffer.setCursorPosition(column = 0, row = 0)
+        buffer.insertText("a")
+
+        assertEquals(CellKind.GraphemeStart("界", 2), buffer.getScreenCell(1, 0).kind)
+        assertEquals(CellKind.Continuation, buffer.getScreenCell(2, 0).kind)
+        assertEquals("a界b    ", buffer.getScreenLine(0))
+    }
+
+    @Test
+    fun move_cursor_right_skips_continuation_cells_for_emoji_clusters() {
+        val buffer = TerminalBuffer(width = 8, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("👍🏻a")
+        buffer.setCursorPosition(column = 0, row = 0)
+        buffer.moveCursorRight()
+
+        assertEquals(2, buffer.getCursorColumn())
+    }
+
+    @Test
+    fun set_cursor_position_normalizes_from_continuation_to_grapheme_start() {
+        val buffer = TerminalBuffer(width = 8, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("👍🏻a")
+        buffer.setCursorPosition(column = 1, row = 0)
+
+        assertEquals(0, buffer.getCursorColumn())
+    }
+
+    @Test
+    fun overwrite_on_continuation_clears_the_whole_grapheme() {
+        val buffer = TerminalBuffer(width = 8, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("👍🏻a")
+        buffer.setCursorPosition(column = 1, row = 0)
+        buffer.writeText("b")
+
+        assertEquals("b a     ", buffer.getScreenLine(0))
+        assertEquals(CellKind.GraphemeStart("b", 1), buffer.getScreenCell(0, 0).kind)
+        assertEquals(CellKind.Empty, buffer.getScreenCell(1, 0).kind)
+    }
+
+    @Test
     fun get_screen_line_returns_visible_row_as_plain_string() {
         val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
 
