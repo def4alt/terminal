@@ -39,6 +39,18 @@ class TerminalBufferCliTest {
     }
 
     @Test
+    fun render_snapshot_displays_emoji_clusters_without_fake_internal_spacing() {
+        val buffer = TerminalBuffer(width = 8, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("a👍🏻b")
+
+        val snapshot = renderSnapshot(buffer)
+
+        assertTrue(snapshot.contains("a👍🏻b"))
+        assertFalse(snapshot.contains("a👍🏻 b"))
+    }
+
+    @Test
     fun execute_help_writes_help_text_and_continues() {
         val output = StringBuilder()
         val cli = TerminalBufferCli(output = output)
@@ -308,5 +320,16 @@ class TerminalBufferCliTest {
 
         assertTrue(output.toString().contains("hello"))
         assertTrue(output.toString().contains("buffer> "))
+    }
+
+    @Test
+    fun cli_write_and_show_preserve_emoji_modifier_sequence_visually() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("write 👍🏻a")
+        cli.execute("show")
+
+        assertTrue(output.toString().contains("👍🏻a"))
     }
 }
