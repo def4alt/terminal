@@ -370,6 +370,31 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun segmenter_keeps_ascii_as_single_codepoint_graphemes() {
+        assertEquals(listOf("a", "b", "c"), segmentGraphemes("abc").map { it.text })
+    }
+
+    @Test
+    fun segmenter_keeps_combining_mark_sequence_as_one_grapheme() {
+        assertEquals(listOf("e\u0301"), segmentGraphemes("e\u0301").map { it.text })
+    }
+
+    @Test
+    fun segmenter_keeps_emoji_modifier_sequence_as_one_grapheme() {
+        assertEquals(listOf("👍🏻"), segmentGraphemes("👍🏻").map { it.text })
+    }
+
+    @Test
+    fun segmenter_keeps_zwj_emoji_sequence_as_one_grapheme() {
+        assertEquals(listOf("👨‍👩‍👧‍👦"), segmentGraphemes("👨‍👩‍👧‍👦").map { it.text })
+    }
+
+    @Test
+    fun segmenter_keeps_flag_sequence_as_one_grapheme() {
+        assertEquals(listOf("🇵🇱"), segmentGraphemes("🇵🇱").map { it.text })
+    }
+
+    @Test
     fun get_screen_line_returns_visible_row_as_plain_string() {
         val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
 
