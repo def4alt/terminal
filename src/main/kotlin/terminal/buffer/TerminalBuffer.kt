@@ -14,6 +14,32 @@ class TerminalBuffer(
 
     fun getCursorRow(): Int = cursorRow
 
+    fun setCursorPosition(column: Int, row: Int) {
+        cursorColumn = column
+        cursorRow = row
+        clampCursor()
+    }
+
+    fun moveCursorUp(count: Int = 1) {
+        cursorRow -= count
+        clampCursor()
+    }
+
+    fun moveCursorDown(count: Int = 1) {
+        cursorRow += count
+        clampCursor()
+    }
+
+    fun moveCursorLeft(count: Int = 1) {
+        cursorColumn -= count
+        clampCursor()
+    }
+
+    fun moveCursorRight(count: Int = 1) {
+        cursorColumn += count
+        clampCursor()
+    }
+
     fun getScreenLine(row: Int): String = lineToString(screen[row])
 
     fun getScreenContent(): String = screen.joinToString("\n", transform = ::lineToString)
@@ -26,5 +52,10 @@ class TerminalBuffer(
 
     private fun lineToString(line: List<Cell>): String = line.joinToString("") { cell ->
         cell.character?.toString() ?: " "
+    }
+
+    private fun clampCursor() {
+        cursorColumn = cursorColumn.coerceIn(0, width - 1)
+        cursorRow = cursorRow.coerceIn(0, height - 1)
     }
 }
