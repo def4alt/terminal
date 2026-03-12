@@ -143,4 +143,35 @@ class TerminalBufferTest {
         assertEquals(1, buffer.getCursorColumn())
         assertEquals(1, buffer.getCursorRow())
     }
+
+    @Test
+    fun fill_line_replaces_current_row_with_repeated_character_using_current_attributes() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+        val attributes = CellAttributes(
+            foreground = TerminalColor.CYAN,
+            background = TerminalColor.BLACK,
+            styles = setOf(TextStyle.BOLD),
+        )
+
+        buffer.setCursorPosition(column = 2, row = 1)
+        buffer.setCurrentAttributes(attributes)
+        buffer.fillLine('x')
+
+        assertEquals("xxxx", buffer.getScreenLine(1))
+        assertEquals(Cell('x', attributes), buffer.getScreenCell(column = 0, row = 1))
+        assertEquals(Cell('x', attributes), buffer.getScreenCell(column = 3, row = 1))
+    }
+
+    @Test
+    fun fill_line_with_null_clears_current_row_to_blank_cells() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.setCursorPosition(column = 0, row = 1)
+        buffer.writeText("test")
+        buffer.setCursorPosition(column = 0, row = 1)
+        buffer.fillLine(null)
+
+        assertEquals("    ", buffer.getScreenLine(1))
+        assertEquals(Cell(), buffer.getScreenCell(column = 2, row = 1))
+    }
 }

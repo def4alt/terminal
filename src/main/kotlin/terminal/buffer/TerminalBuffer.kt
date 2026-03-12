@@ -28,6 +28,10 @@ class TerminalBuffer(
         }
     }
 
+    fun fillLine(character: Char?) {
+        screen[cursorRow] = MutableList(width) { Cell(character = character, attributes = currentAttributes) }
+    }
+
     fun setCursorPosition(column: Int, row: Int) {
         cursorColumn = column
         cursorRow = row
