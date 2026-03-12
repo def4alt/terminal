@@ -41,8 +41,9 @@ flowchart TD
 - The buffer tracks current attributes that are applied to future edits.
 - Cursor position can be read, set, and moved with bounds clamping.
 - Editing supports overwrite writes, insert writes, line fill, bottom-line insertion, screen clear, and screen+scrollback clear.
+- Editing also supports `resize(newWidth, newHeight)` with a deterministic no-reflow policy.
 - Content access supports reading cells, lines, visible screen content, and combined history+screen content.
-- The CLI currently supports `help`, `show`, `cursor`, `set-cursor`, `move`, `screen`, `history`, `attrs`, `set-attrs`, `write`, `insert`, `fill`, `append-line`, `clear-screen`, `clear-all`, `reset`, and `quit`.
+- The CLI currently supports `help`, `show`, `cursor`, `set-cursor`, `move`, `screen`, `history`, `attrs`, `set-attrs`, `write`, `insert`, `fill`, `append-line`, `clear-screen`, `clear-all`, `resize`, `reset`, and `quit`.
 - The project includes behavior-focused unit tests with edge cases and boundary conditions.
 
 ## Solution overview
@@ -81,7 +82,21 @@ representation for a real production terminal emulator.
 - There is no ANSI parser, renderer, or escape-sequence handling in this project.
 - The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
 - The implementation now covers common grapheme cases like combining marks, emoji skin-tone modifiers, ZWJ emoji sequences, flags, and wide CJK characters.
-- Full Unicode grapheme-boundary correctness across all edge cases is still a future improvement, along with resize behavior.
+- Resize intentionally does not reflow previously wrapped content; widening preserves existing visual rows instead of reconstructing logical paragraphs from screen state.
+- Full Unicode grapheme-boundary correctness across all edge cases is still a future improvement.
+
+## Resize behavior
+
+Resize stays in the buffer layer and does not attempt paragraph or wrap reflow.
+It works on the current visual rows only and keeps graphemes as the smallest resize unit.
+
+- Width growth preserves the visible graphemes already on a row and pads the rest with empty cells.
+- Width shrink rebuilds each row from left to right, keeps only whole graphemes that still fit, and drops any grapheme that would be cut.
+- Height growth appends blank rows at the bottom of the visible screen.
+- Height shrink moves trimmed top visible rows into scrollback and still enforces the configured scrollback capacity.
+- After resize, the cursor is clamped into the new bounds and normalized left if it lands on a continuation cell.
+
+This is an intentional tradeoff: the buffer keeps resize predictable and grapheme-safe without needing a more complex logical-line model to reconstruct old wraps during width changes.
 
 ## Example usage in code
 
@@ -142,6 +157,7 @@ set-attrs green default bold
 attrs
 fill =
 append-line
+resize 6 3
 history
 clear-screen
 reset
@@ -152,6 +168,7 @@ The CLI is intentionally simple: it is a manual playground for the buffer, not a
 
 - `write <text>` and `insert <text>` treat everything after the command name as raw text.
 - `fill <char|empty>` accepts either `empty` or the first character after `fill `.
+- `resize <width> <height>` changes the visible dimensions without reflowing logical lines.
 - `set-attrs <fg> <bg> <styles...>` uses names like `default`, `green`, `bright_red`, `bold`, `italic`, and `underline`.
 - `history` prints scrollback plus the current screen, while `screen` prints only the visible screen.
 
@@ -188,6 +205,7 @@ One important detail: string reconstruction APIs like `getScreenLine()` return v
 - `src/main/kotlin/terminal/buffer/Grapheme.kt` - internal grapheme model
 - `src/main/kotlin/terminal/buffer/GraphemeSegmenter.kt` - pragmatic grapheme segmentation
 - `src/main/kotlin/terminal/buffer/GraphemeWidth.kt` - grapheme display width rules
+- `src/main/kotlin/terminal/buffer/ScreenLine.kt` - internal line abstraction used for grapheme-safe row operations
 - `src/main/kotlin/terminal/buffer/CellAttributes.kt` - foreground/background/style attributes
 - `src/main/kotlin/terminal/buffer/TerminalColor.kt` - 16-color terminal palette plus default
 - `src/main/kotlin/terminal/buffer/TextStyle.kt` - supported text styles
@@ -200,6 +218,5 @@ One important detail: string reconstruction APIs like `getScreenLine()` return v
 - Follow the terminal emulator rabbit hole further with more complex ANSI behavior, cursor modes, and similar features.
 - Add explicit `getCharacterAt` and `getAttributesAt` methods if the public API should mirror the spec wording more directly.
 - Tighten grapheme segmentation and width measurement toward fuller Unicode correctness.
-- Implement resize behavior with clearly defined retention rules.
 - Revisit some naming around `history` vs `screen + scrollback` accessors to make the API even more explicit.
 - Improve CLI ergonomics with better argument parsing and maybe command aliases.
