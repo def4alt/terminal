@@ -13,4 +13,25 @@ class TerminalBufferCliTest {
         assertTrue(help.contains("show"))
         assertTrue(help.contains("quit"))
     }
+
+    @Test
+    fun render_snapshot_includes_screen_history_cursor_and_attributes() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        val snapshot = renderSnapshot(buffer)
+
+        assertTrue(snapshot.contains("Screen:"))
+        assertTrue(snapshot.contains("History:"))
+        assertTrue(snapshot.contains("Cursor: (0, 0)"))
+        assertTrue(snapshot.contains("Attributes:"))
+    }
+
+    @Test
+    fun render_snapshot_formats_empty_buffer_readably() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        val snapshot = renderSnapshot(buffer)
+
+        assertTrue(snapshot.contains("    \n    "))
+    }
 }
