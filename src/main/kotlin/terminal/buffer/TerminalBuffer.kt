@@ -43,6 +43,20 @@ class TerminalBuffer(
         scrollUpOneLine()
     }
 
+    fun clearScreen() {
+        repeat(height) { row ->
+            screen[row] = blankLine()
+        }
+        cursorColumn = 0
+        cursorRow = 0
+    }
+
+    fun clearScreenAndScrollback() {
+        scrollback.clear()
+        currentAttributes = CellAttributes()
+        clearScreen()
+    }
+
     fun setCursorPosition(column: Int, row: Int) {
         cursorColumn = column
         cursorRow = row

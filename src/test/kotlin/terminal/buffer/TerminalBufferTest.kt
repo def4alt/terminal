@@ -249,4 +249,39 @@ class TerminalBufferTest {
 
         assertEquals("efgh\n    \n    ", buffer.getHistoryContent())
     }
+
+    @Test
+    fun clear_screen_resets_visible_content_but_keeps_scrollback() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcdefghi")
+        buffer.clearScreen()
+
+        assertEquals("    ", buffer.getScreenLine(0))
+        assertEquals("    ", buffer.getScreenLine(1))
+        assertEquals("abcd\n    \n    ", buffer.getHistoryContent())
+        assertEquals(0, buffer.getCursorColumn())
+        assertEquals(0, buffer.getCursorRow())
+    }
+
+    @Test
+    fun clear_screen_and_scrollback_resets_all_content_cursor_and_attributes() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+        val attributes = CellAttributes(
+            foreground = TerminalColor.YELLOW,
+            background = TerminalColor.BLUE,
+            styles = setOf(TextStyle.UNDERLINE),
+        )
+
+        buffer.setCurrentAttributes(attributes)
+        buffer.writeText("abcdefghi")
+        buffer.clearScreenAndScrollback()
+
+        assertEquals("    ", buffer.getScreenLine(0))
+        assertEquals("    ", buffer.getScreenLine(1))
+        assertEquals("    \n    ", buffer.getHistoryContent())
+        assertEquals(CellAttributes(), buffer.getCurrentAttributes())
+        assertEquals(0, buffer.getCursorColumn())
+        assertEquals(0, buffer.getCursorRow())
+    }
 }
