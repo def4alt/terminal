@@ -336,6 +336,31 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun move_cursor_right_skips_continuation_cells_of_wide_graphemes() {
+        val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("界a")
+        buffer.setCursorPosition(column = 0, row = 0)
+        buffer.moveCursorRight()
+
+        assertEquals(2, buffer.getCursorColumn())
+        assertEquals(0, buffer.getCursorRow())
+    }
+
+    @Test
+    fun insert_text_keeps_wide_grapheme_cells_together() {
+        val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("ab")
+        buffer.setCursorPosition(column = 1, row = 0)
+        buffer.insertText("界")
+
+        assertEquals("a界 b  ", buffer.getScreenLine(0))
+        assertEquals(CellKind.GraphemeStart("界", 2), buffer.getScreenCell(column = 1, row = 0).kind)
+        assertEquals(CellKind.Continuation, buffer.getScreenCell(column = 2, row = 0).kind)
+    }
+
+    @Test
     fun get_screen_line_returns_visible_row_as_plain_string() {
         val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
 
