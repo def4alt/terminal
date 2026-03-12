@@ -6,7 +6,7 @@ to store visible text, preserve scrollback history, and track cursor state.
 
 It is intentionally a library-first implementation with a small interactive CLI,
 not a full terminal UI. The buffer is the interesting part here: shells write into it,
-and a richer renderer or UI could sit on top later.
+and a renderer or richer UI could sit on top later.
 
 ## Architecture
 
@@ -35,13 +35,14 @@ flowchart TD
 ## What exists
 
 - `TerminalBuffer` supports configurable width, height, and maximum scrollback size.
-- The project now includes an interactive CLI for manually exercising the buffer.
+- The project includes an interactive CLI for manually exercising the buffer.
 - The buffer stores screen content separately from scrollback history.
 - Each cell stores a `CellKind` plus foreground color, background color, and style flags.
 - The buffer tracks current attributes that are applied to future edits.
 - Cursor position can be read, set, and moved with bounds clamping.
 - Editing supports overwrite writes, insert writes, line fill, bottom-line insertion, screen clear, and screen+scrollback clear.
 - Content access supports reading cells, lines, visible screen content, and combined history+screen content.
+- The CLI currently supports `help`, `show`, `cursor`, `set-cursor`, `move`, `screen`, `history`, `attrs`, `set-attrs`, `write`, `insert`, `fill`, `append-line`, `clear-screen`, `clear-all`, `reset`, and `quit`.
 - The project includes behavior-focused unit tests with edge cases and boundary conditions.
 
 ## Solution overview
@@ -75,6 +76,7 @@ representation for a real production terminal emulator.
 - Cells are immutable values, which makes tests and behavior easier to reason about.
 - Wide characters are modeled explicitly as grapheme-start plus continuation cells rather than as raw chars in isolated cells.
 - Writing now works at grapheme-cluster level instead of raw code point level.
+- Rendering reconstructs visible text from grapheme-start cells and does not print continuation cells as fake spaces.
 - Screen and history access are exposed through explicit read methods instead of exposing internal collections.
 - There is no ANSI parser, renderer, or escape-sequence handling in this project.
 - The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
@@ -132,16 +134,26 @@ Example CLI session:
 help
 write hello
 show
+cursor
 set-cursor 1 0
 insert X
+move right 2
 set-attrs green default bold
 attrs
 fill =
+append-line
 history
+clear-screen
+reset
 quit
 ```
 
 The CLI is intentionally simple: it is a manual playground for the buffer, not a terminal emulator UI.
+
+- `write <text>` and `insert <text>` treat everything after the command name as raw text.
+- `fill <char|empty>` accepts either `empty` or the first character after `fill `.
+- `set-attrs <fg> <bg> <styles...>` uses names like `default`, `green`, `bright_red`, `bold`, `italic`, and `underline`.
+- `history` prints scrollback plus the current screen, while `screen` prints only the visible screen.
 
 ## Unicode notes
 
@@ -165,12 +177,17 @@ The current implementation includes tests for:
 
 The segmentation and width logic is pragmatic rather than fully Unicode-complete, but it avoids the broken spacing and codepoint-splitting behavior that the earlier version had.
 
+One important detail: string reconstruction APIs like `getScreenLine()` return visible grapheme text plus blanks for truly empty cells. Continuation cells are not rendered as extra spaces anymore.
+
 ## Layout
 
 - `src/main/kotlin/terminal/buffer/TerminalBuffer.kt` - main buffer implementation
 - `src/main/kotlin/terminal/buffer/TerminalBufferCli.kt` - interactive CLI and command handling
 - `src/main/kotlin/terminal/buffer/Cell.kt` - cell value type
 - `src/main/kotlin/terminal/buffer/CellKind.kt` - empty, grapheme-start, and continuation cell states
+- `src/main/kotlin/terminal/buffer/Grapheme.kt` - internal grapheme model
+- `src/main/kotlin/terminal/buffer/GraphemeSegmenter.kt` - pragmatic grapheme segmentation
+- `src/main/kotlin/terminal/buffer/GraphemeWidth.kt` - grapheme display width rules
 - `src/main/kotlin/terminal/buffer/CellAttributes.kt` - foreground/background/style attributes
 - `src/main/kotlin/terminal/buffer/TerminalColor.kt` - 16-color terminal palette plus default
 - `src/main/kotlin/terminal/buffer/TextStyle.kt` - supported text styles
@@ -180,15 +197,9 @@ The segmentation and width logic is pragmatic rather than fully Unicode-complete
 
 ## Improvements I would make next
 
+- Follow the terminal emulator rabbit hole further with more complex ANSI behavior, cursor modes, and similar features.
 - Add explicit `getCharacterAt` and `getAttributesAt` methods if the public API should mirror the spec wording more directly.
-- Implement wide-character support for CJK and emoji.
+- Tighten grapheme segmentation and width measurement toward fuller Unicode correctness.
 - Implement resize behavior with clearly defined retention rules.
 - Revisit some naming around `history` vs `screen + scrollback` accessors to make the API even more explicit.
 - Improve CLI ergonomics with better argument parsing and maybe command aliases.
-
-## Submission notes
-
-- The repository includes source code, a Gradle build, and comprehensive tests.
-- The git history is incremental and uses Conventional Commits.
-- Feature work was intentionally kept separate from later test-hardening work.
-- Before external submission, add the public GitHub or GitLab repository link here.
