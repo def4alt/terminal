@@ -4,9 +4,9 @@ This is my small project for implementing a terminal text buffer in Kotlin.
 The project focuses on the core data structure that a terminal emulator would use
 to store visible text, preserve scrollback history, and track cursor state.
 
-It is intentionally a library-first implementation, not a full terminal UI.
-The buffer is the interesting part here: shells write into it, and a renderer or UI
-could sit on top later.
+It is intentionally a library-first implementation with a small interactive CLI,
+not a full terminal UI. The buffer is the interesting part here: shells write into it,
+and a richer renderer or UI could sit on top later.
 
 ## Architecture
 
@@ -28,12 +28,14 @@ flowchart TD
     CELL --> BG[Background color]
     CELL --> ST[Style flags]
 
+    CLI[Interactive CLI] --> B
     T[JUnit tests] --> B
 ```
 
 ## What exists
 
 - `TerminalBuffer` supports configurable width, height, and maximum scrollback size.
+- The project now includes an interactive CLI for manually exercising the buffer.
 - The buffer stores screen content separately from scrollback history.
 - Each cell stores a character plus foreground color, background color, and style flags.
 - The buffer tracks current attributes that are applied to future edits.
@@ -59,11 +61,12 @@ representation for a real production terminal emulator.
 
 ## Trade-offs and decisions
 
-- The project is delivered as a library, not a full terminal app. The spec asks for the terminal buffer core data structure, and the tests document its behavior.
+- The project is delivered as a library plus a simple CLI, not a full terminal app. The spec asks for the terminal buffer core data structure, and the tests still act as the main behavior documentation.
 - The model favors readability and clean code over aggressive optimization.
 - Cells are immutable values, which makes tests and behavior easier to reason about.
 - Screen and history access are exposed through explicit read methods instead of exposing internal collections.
 - There is no ANSI parser, renderer, or escape-sequence handling in this project.
+- The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
 - Wide characters and resize behavior are not implemented yet; they are listed as future improvements.
 
 ## Example usage in code
@@ -81,6 +84,7 @@ println(buffer.getHistoryContent())
 ```
 
 For concrete behavior examples, see `src/test/kotlin/terminal/buffer/TerminalBufferTest.kt`.
+For CLI behavior, see `src/test/kotlin/terminal/buffer/TerminalBufferCliTest.kt`.
 
 ## Local development
 
@@ -90,26 +94,48 @@ Run tests:
 ./gradlew test
 ```
 
-This project does not currently include a standalone terminal UI.
-The tests are the main executable way to verify behavior right now.
+Run the interactive CLI:
+
+```sh
+./gradlew run
+```
+
+Example CLI session:
+
+```text
+help
+write hello
+show
+set-cursor 1 0
+insert X
+set-attrs green default bold
+attrs
+fill =
+history
+quit
+```
+
+The CLI is intentionally simple: it is a manual playground for the buffer, not a terminal emulator UI.
 
 ## Layout
 
 - `src/main/kotlin/terminal/buffer/TerminalBuffer.kt` - main buffer implementation
+- `src/main/kotlin/terminal/buffer/TerminalBufferCli.kt` - interactive CLI and command handling
 - `src/main/kotlin/terminal/buffer/Cell.kt` - cell value type
 - `src/main/kotlin/terminal/buffer/CellAttributes.kt` - foreground/background/style attributes
 - `src/main/kotlin/terminal/buffer/TerminalColor.kt` - 16-color terminal palette plus default
 - `src/main/kotlin/terminal/buffer/TextStyle.kt` - supported text styles
 - `src/test/kotlin/terminal/buffer/TerminalBufferTest.kt` - behavior and edge-case tests
+- `src/test/kotlin/terminal/buffer/TerminalBufferCliTest.kt` - CLI and command behavior tests
 - `docs/plans` - implementation planning documents used during development
 
 ## Improvements I would make next
 
-- Add a small runnable demo app that prints buffer state after scripted operations.
 - Add explicit `getCharacterAt` and `getAttributesAt` methods if the public API should mirror the spec wording more directly.
 - Implement wide-character support for CJK and emoji.
 - Implement resize behavior with clearly defined retention rules.
 - Revisit some naming around `history` vs `screen + scrollback` accessors to make the API even more explicit.
+- Improve CLI ergonomics with better argument parsing and maybe command aliases.
 
 ## Submission notes
 
