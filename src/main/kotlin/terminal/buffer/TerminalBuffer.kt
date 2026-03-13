@@ -526,6 +526,19 @@ class TerminalBuffer(
     private fun rowDisplayWidth(line: ScreenLine): Int {
         return line.styledGraphemes().sumOf { it.displayWidth }
     }
+
+    private fun rowsToLogicalLines(rows: List<BufferRow>): MutableList<LogicalLine> {
+        val logicalLines = mutableListOf<LogicalLine>()
+
+        for (row in rows) {
+            if (!row.wrapsFromPrevious || logicalLines.isEmpty()) {
+                logicalLines += LogicalLine()
+            }
+            logicalLines.last().append(row.line.styledUnitsPreservingBlanks())
+        }
+
+        return logicalLines
+    }
 }
 
 internal fun Grapheme.toCells(attributes: CellAttributes): List<Cell> {

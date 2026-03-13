@@ -15,6 +15,8 @@ internal class ScreenLine private constructor(
         cells[column] = cell
     }
 
+    fun width(): Int = cells.size
+
     fun toDisplayText(): String = buildString {
         for (cell in cells) {
             when (val kind = cell.kind) {
@@ -65,10 +67,32 @@ internal class ScreenLine private constructor(
         }
     }
 
+    fun styledUnitsPreservingBlanks(): List<terminal.buffer.StyledGrapheme> {
+        val units = mutableListOf<terminal.buffer.StyledGrapheme>()
+
+        for (cell in cells) {
+            when (val kind = cell.kind) {
+                CellKind.Empty -> units += terminal.buffer.StyledGrapheme(" ", 1, CellAttributes())
+                CellKind.Continuation -> Unit
+                is CellKind.GraphemeStart -> units += terminal.buffer.StyledGrapheme(kind.text, kind.displayWidth, cell.attributes)
+            }
+        }
+
+        return units
+    }
+
     fun writeGrapheme(column: Int, kind: CellKind.GraphemeStart, attributes: CellAttributes) {
         for ((offset, cell) in Grapheme(kind.text, kind.displayWidth).toCells(attributes).withIndex()) {
             replace(column + offset, cell)
         }
+    }
+
+    fun normalizeColumn(column: Int): Int {
+        var normalized = column.coerceIn(0, cells.lastIndex)
+        while (normalized > 0 && cellAt(normalized).kind == CellKind.Continuation) {
+            normalized -= 1
+        }
+        return normalized
     }
 
     companion object {

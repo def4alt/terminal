@@ -1,6 +1,41 @@
 package terminal.buffer
 
-internal object ViewportProjector
+internal object ViewportProjector {
+    fun project(
+        logicalLines: List<LogicalLine>,
+        width: Int,
+        height: Int,
+        maxScrollbackLines: Int,
+    ): ViewportProjection {
+        val allRows = logicalLines.flatMapIndexed { index, line ->
+            projectLogicalLine(line = line, logicalLineIndex = index, width = width)
+        }
+
+        val visibleRows = when {
+            allRows.size >= height -> allRows.takeLast(height)
+            else -> allRows + MutableList(height - allRows.size) { blankVisualRow(width, logicalLines.lastIndex.coerceAtLeast(0)) }
+        }
+
+        val scrollbackRows = if (allRows.size > height) {
+            allRows.dropLast(height).takeLast(maxScrollbackLines)
+        } else {
+            emptyList()
+        }
+
+        return ViewportProjection(scrollbackRows = scrollbackRows, visibleRows = visibleRows)
+    }
+
+    private fun blankVisualRow(width: Int, logicalLineIndex: Int): VisualRow {
+        return VisualRow(
+            logicalLineIndex = logicalLineIndex,
+            startGraphemeIndex = 0,
+            startDisplayColumn = 0,
+            graphemeCount = 0,
+            displayWidth = 0,
+            screenLine = ScreenLine.blank(width),
+        )
+    }
+}
 
 internal fun projectLogicalLine(
     line: LogicalLine,
@@ -15,6 +50,7 @@ internal fun projectLogicalLine(
             VisualRow(
                 logicalLineIndex = logicalLineIndex,
                 startGraphemeIndex = 0,
+                startDisplayColumn = 0,
                 graphemeCount = 0,
                 displayWidth = 0,
                 screenLine = ScreenLine.blank(width),
@@ -29,6 +65,7 @@ internal fun projectLogicalLine(
         val row = ScreenLine.blank(width)
         var displayWidth = 0
         val rowStart = index
+        val rowStartDisplayColumn = graphemes.take(rowStart).sumOf { it.displayWidth }
 
         while (index < graphemes.size) {
             val grapheme = graphemes[index]
@@ -48,6 +85,7 @@ internal fun projectLogicalLine(
         rows += VisualRow(
             logicalLineIndex = logicalLineIndex,
             startGraphemeIndex = rowStart,
+            startDisplayColumn = rowStartDisplayColumn,
             graphemeCount = index - rowStart,
             displayWidth = displayWidth,
             screenLine = row,

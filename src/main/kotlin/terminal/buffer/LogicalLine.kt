@@ -33,6 +33,8 @@ internal class LogicalLine(
 
     fun graphemes(): List<StyledGrapheme> = graphemes.toList()
 
+    fun displayWidth(): Int = graphemes.sumOf { it.displayWidth }
+
     fun toDisplayText(): String = graphemes.joinToString(separator = "") { it.text }
 
     fun wrap(width: Int): List<ScreenLine> {

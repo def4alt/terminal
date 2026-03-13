@@ -134,6 +134,35 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun cursor_mapper_moves_to_the_next_visual_row_when_logical_position_hits_a_wrap_boundary() {
+        val line = LogicalLine()
+        line.append(
+            listOf(
+                StyledGrapheme("a", 1, CellAttributes()),
+                StyledGrapheme("b", 1, CellAttributes()),
+                StyledGrapheme("c", 1, CellAttributes()),
+                StyledGrapheme("d", 1, CellAttributes()),
+                StyledGrapheme("e", 1, CellAttributes()),
+            ),
+        )
+
+        val projection = ViewportProjector.project(
+            logicalLines = listOf(line),
+            width = 4,
+            height = 3,
+            maxScrollbackLines = 5,
+        )
+
+        val screenCursor = CursorMapper.logicalToScreen(
+            cursor = LogicalCursor(lineIndex = 0, displayColumn = 4),
+            projection = projection,
+            width = 4,
+        )
+
+        assertEquals(0 to 1, screenCursor)
+    }
+
+    @Test
     fun set_current_attributes_changes_attributes_for_future_edits() {
         val buffer = buffer()
         val attributes = attributes(TerminalColor.GREEN, TerminalColor.BLACK, TextStyle.BOLD, TextStyle.UNDERLINE)
