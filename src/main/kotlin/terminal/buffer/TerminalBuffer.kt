@@ -158,25 +158,25 @@ class TerminalBuffer(
         normalizeCursorPosition()
     }
 
-    fun getScreenLine(row: Int): String = screen[row].line.toDisplayText()
+    fun getScreenLine(row: Int): String = screenProjection().visibleRows[row].screenLine.toDisplayText()
 
-    fun getScreenCell(column: Int, row: Int): Cell = screen[row].line.cellAt(column)
+    fun getScreenCell(column: Int, row: Int): Cell = screenProjection().visibleRows[row].screenLine.cellAt(column)
 
     fun getScreenCharacter(column: Int, row: Int): String? = characterOf(getScreenCell(column, row))
 
     fun getScreenAttributes(column: Int, row: Int): CellAttributes = getScreenCell(column, row).attributes
 
-    fun getHistoryCell(column: Int, row: Int): Cell = historyRows()[row].line.cellAt(column)
+    fun getHistoryCell(column: Int, row: Int): Cell = historyProjectionRows()[row].screenLine.cellAt(column)
 
     fun getHistoryCharacter(column: Int, row: Int): String? = characterOf(getHistoryCell(column, row))
 
     fun getHistoryAttributes(column: Int, row: Int): CellAttributes = getHistoryCell(column, row).attributes
 
-    fun getHistoryLine(row: Int): String = historyRows()[row].line.toDisplayText()
+    fun getHistoryLine(row: Int): String = historyProjectionRows()[row].screenLine.toDisplayText()
 
-    fun getScreenContent(): String = screen.joinToString("\n") { it.line.toDisplayText() }
+    fun getScreenContent(): String = screenProjection().visibleRows.joinToString("\n") { it.screenLine.toDisplayText() }
 
-    fun getHistoryContent(): String = historyRows().joinToString("\n") { it.line.toDisplayText() }
+    fun getHistoryContent(): String = historyProjectionRows().joinToString("\n") { it.screenLine.toDisplayText() }
 
     private fun blankCell(): Cell = Cell()
 
@@ -525,6 +525,25 @@ class TerminalBuffer(
 
     private fun rowDisplayWidth(line: ScreenLine): Int {
         return line.styledGraphemes().sumOf { it.displayWidth }
+    }
+
+    private fun screenProjection(): ViewportProjection {
+        return ViewportProjector.project(
+            logicalLines = rowsToLogicalLines(screen),
+            width = width,
+            height = height,
+            maxScrollbackLines = 0,
+        )
+    }
+
+    private fun historyProjectionRows(): List<VisualRow> {
+        val projection = ViewportProjector.project(
+            logicalLines = rowsToLogicalLines(historyRows()),
+            width = width,
+            height = height,
+            maxScrollbackLines = maxScrollbackLines,
+        )
+        return projection.scrollbackRows + projection.visibleRows
     }
 
     private fun rowsToLogicalLines(rows: List<BufferRow>): MutableList<LogicalLine> {
