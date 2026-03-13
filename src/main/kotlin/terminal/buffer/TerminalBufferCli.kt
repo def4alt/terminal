@@ -29,14 +29,7 @@ fun renderHelp(): String = buildString {
     appendLine("quit")
 }
 
-fun renderSnapshot(buffer: TerminalBuffer): String = buildString {
-    appendLine("Screen:")
-    appendLine(buffer.getScreenContent())
-    appendLine("History:")
-    appendLine(buffer.getHistoryContent())
-    appendLine("Cursor: (${buffer.getCursorColumn()}, ${buffer.getCursorRow()})")
-    append("Attributes: ${formatAttributes(buffer.getCurrentAttributes())}")
-}
+fun renderSnapshot(buffer: TerminalBuffer): String = AnsiSnapshotRenderer.renderSnapshot(buffer)
 
 class TerminalBufferCli(
     private val input: BufferedReader = BufferedReader(InputStreamReader(System.`in`)),
@@ -201,7 +194,7 @@ class TerminalBufferCli(
     private fun newBuffer(): TerminalBuffer = TerminalBuffer(width = width, height = height, maxScrollbackLines = scrollback)
 }
 
-private fun formatAttributes(attributes: CellAttributes): String {
+internal fun formatAttributes(attributes: CellAttributes): String {
     val styles = if (attributes.styles.isEmpty()) "none" else attributes.styles.joinToString(",") { it.name.lowercase() }
     return "fg=${attributes.foreground.name.lowercase()} bg=${attributes.background.name.lowercase()} styles=$styles"
 }

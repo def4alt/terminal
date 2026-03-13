@@ -3,6 +3,7 @@ package terminal.buffer
 import org.junit.jupiter.api.Test
 import java.io.BufferedReader
 import java.io.StringReader
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -59,6 +60,87 @@ class TerminalBufferCliTest {
 
         assertTrue(snapshot.contains("a👍🏻b"))
         assertFalse(snapshot.contains("a👍🏻 b"))
+    }
+
+    @Test
+    fun render_snapshot_uses_ansi_sequences_for_styled_screen_cells() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.setCurrentAttributes(
+            CellAttributes(
+                foreground = TerminalColor.RED,
+                background = TerminalColor.BLUE,
+                styles = setOf(TextStyle.BOLD, TextStyle.UNDERLINE),
+            ),
+        )
+        buffer.writeText("A")
+
+        val snapshot = renderSnapshot(buffer)
+
+        assertTrue(snapshot.contains("\u001B[31;44;1;4mA"))
+    }
+
+    @Test
+    fun render_snapshot_resets_before_history_and_cursor_sections() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.setCurrentAttributes(CellAttributes(foreground = TerminalColor.GREEN, styles = setOf(TextStyle.BOLD)))
+        buffer.writeText("A")
+
+        val snapshot = renderSnapshot(buffer)
+
+        assertTrue(snapshot.contains("\u001B[0m\nHistory:"))
+        assertTrue(snapshot.contains("\u001B[0m\nCursor:"))
+    }
+
+    @Test
+    fun render_snapshot_uses_one_sequence_for_adjacent_cells_with_same_attributes() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.setCurrentAttributes(CellAttributes(foreground = TerminalColor.RED, styles = setOf(TextStyle.BOLD)))
+        buffer.writeText("AB")
+
+        val snapshot = renderSnapshot(buffer)
+        val styledSegment = snapshot.substringAfter("Screen:\n").substringBefore("\nHistory:")
+
+        assertEquals(1, "\\u001B\\[31;1m".toRegex().findAll(styledSegment).count())
+    }
+
+    @Test
+    fun render_snapshot_renders_wide_graphemes_once_without_styling_continuations_separately() {
+        val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
+
+        buffer.setCurrentAttributes(CellAttributes(foreground = TerminalColor.BRIGHT_CYAN, background = TerminalColor.BLUE))
+        buffer.writeText("界")
+
+        val snapshot = renderSnapshot(buffer)
+
+        assertTrue(snapshot.contains("\u001B[96;44m界"))
+        assertFalse(snapshot.contains("\u001B[96;44m界\u001B[96;44m"))
+    }
+
+    @Test
+    fun render_snapshot_for_empty_buffer_does_not_emit_style_sequences_inside_screen_rows() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        val snapshot = renderSnapshot(buffer)
+        val styledScreen = snapshot.substringAfter("Screen:\n").substringBefore("\u001B[0m\nHistory:")
+
+        assertFalse(styledScreen.contains("\u001B[3"))
+        assertFalse(styledScreen.contains("\u001B[4"))
+        assertFalse(styledScreen.contains("\u001B[9"))
+    }
+
+    @Test
+    fun render_snapshot_resets_before_default_cells_after_styled_cells() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.setCurrentAttributes(CellAttributes(foreground = TerminalColor.RED, styles = setOf(TextStyle.BOLD)))
+        buffer.writeText("A")
+
+        val snapshot = renderSnapshot(buffer)
+
+        assertTrue(snapshot.contains("\u001B[31;1mA\u001B[0m "))
     }
 
     @Test

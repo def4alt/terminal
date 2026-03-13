@@ -117,11 +117,14 @@ quit
 
 The CLI is intentionally simple: it is a manual playground for the buffer, not a terminal emulator UI.
 
+- `show` renders the visible screen with ANSI colors and styles when the terminal supports them.
 - `write <text>` and `insert <text>` treat everything after the command name as raw text.
 - `fill <char|empty>` accepts either `empty` or the first character after `fill `.
 - `resize <width> <height>` changes the visible dimensions without reflowing logical lines.
 - `set-attrs <fg> <bg> <styles...>` uses names like `default`, `green`, `bright_red`, `bold`, `italic`, and `underline`.
 - `history` prints scrollback plus the current screen, while `screen` prints only the visible screen.
+
+Terminal styling here is limited to what the terminal supports: color, bold, italic, and underline. Things like actual font size are controlled by the terminal emulator, not by this program.
 
 For concrete behavior examples, see `src/test/kotlin/terminal/buffer/TerminalBufferTest.kt`.
 For behavior-doc tests, see `src/test/kotlin/terminal/buffer/TerminalBufferBehaviorTest.kt` and `src/test/kotlin/terminal/buffer/TerminalBufferCliBehaviorTest.kt`.
