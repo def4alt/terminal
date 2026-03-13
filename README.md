@@ -98,19 +98,18 @@ Example CLI session:
 
 ```text
 help
-write hello
-show
-cursor
+write hello 日本 💛
 set-cursor 1 0
+set-attrs bright_cyan blue bold underline
 insert X
-move right 2
-set-attrs green default bold
-attrs
-fill =
-append-line
-resize 6 3
 history
-clear-screen
+set-cursor 0 3
+set-attrs bright_yellow default italic
+write privit 🇺🇦 ❤️
+show
+resize 6 3
+cursor
+clear-all
 reset
 quit
 ```
