@@ -3,6 +3,10 @@ package terminal.buffer
 internal class LogicalLine(
     private val graphemes: MutableList<StyledGrapheme> = mutableListOf(),
 ) {
+    fun append(items: List<StyledGrapheme>) {
+        graphemes.addAll(items)
+    }
+
     fun insert(index: Int, items: List<StyledGrapheme>) {
         graphemes.addAll(index, items)
     }
@@ -21,4 +25,38 @@ internal class LogicalLine(
     }
 
     fun graphemeCount(): Int = graphemes.size
+
+    fun graphemes(): List<StyledGrapheme> = graphemes.toList()
+
+    fun toDisplayText(): String = graphemes.joinToString(separator = "") { it.text }
+
+    fun wrap(width: Int): List<ScreenLine> {
+        require(width > 0) { "width must be positive" }
+
+        if (graphemes.isEmpty()) {
+            return listOf(ScreenLine.blank(width))
+        }
+
+        val rows = mutableListOf<ScreenLine>()
+        var row = ScreenLine.blank(width)
+        var column = 0
+
+        for (grapheme in graphemes) {
+            if (column + grapheme.displayWidth > width) {
+                rows += row
+                row = ScreenLine.blank(width)
+                column = 0
+            }
+
+            row.writeGrapheme(
+                column = column,
+                kind = CellKind.GraphemeStart(grapheme.text, grapheme.displayWidth),
+                attributes = grapheme.attributes,
+            )
+            column += grapheme.displayWidth
+        }
+
+        rows += row
+        return rows
+    }
 }

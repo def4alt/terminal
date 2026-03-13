@@ -55,6 +55,16 @@ internal class ScreenLine private constructor(
         return graphemes
     }
 
+    fun styledGraphemes(): List<terminal.buffer.StyledGrapheme> {
+        return graphemes().map { grapheme ->
+            terminal.buffer.StyledGrapheme(
+                text = grapheme.kind.text,
+                displayWidth = grapheme.kind.displayWidth,
+                attributes = grapheme.attributes,
+            )
+        }
+    }
+
     fun writeGrapheme(column: Int, kind: CellKind.GraphemeStart, attributes: CellAttributes) {
         for ((offset, cell) in Grapheme(kind.text, kind.displayWidth).toCells(attributes).withIndex()) {
             replace(column + offset, cell)
