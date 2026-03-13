@@ -43,6 +43,7 @@ flowchart TD
 - Editing supports overwrite writes, insert writes, line fill, bottom-line insertion, screen clear, and screen+scrollback clear.
 - Editing also supports `resize(newWidth, newHeight)` with a deterministic no-reflow policy.
 - Content access supports reading cells, lines, visible screen content, and combined history+screen content.
+- Content access also exposes explicit character and attribute lookups for both screen and history positions.
 - The CLI currently supports `help`, `show`, `cursor`, `set-cursor`, `move`, `screen`, `history`, `attrs`, `set-attrs`, `write`, `insert`, `fill`, `append-line`, `clear-screen`, `clear-all`, `resize`, `reset`, and `quit`.
 - The project includes behavior-focused unit tests with edge cases and boundary conditions.
 
@@ -209,14 +210,15 @@ One important detail: string reconstruction APIs like `getScreenLine()` return v
 - `src/main/kotlin/terminal/buffer/CellAttributes.kt` - foreground/background/style attributes
 - `src/main/kotlin/terminal/buffer/TerminalColor.kt` - 16-color terminal palette plus default
 - `src/main/kotlin/terminal/buffer/TextStyle.kt` - supported text styles
-- `src/test/kotlin/terminal/buffer/TerminalBufferTest.kt` - behavior and edge-case tests
+- `src/test/kotlin/terminal/buffer/TerminalBufferTest.kt` - detailed behavior and edge-case tests
 - `src/test/kotlin/terminal/buffer/TerminalBufferCliTest.kt` - CLI and command behavior tests
+- `src/test/kotlin/terminal/buffer/TerminalBufferBehaviorTest.kt` - high-level buffer behavior documentation tests
+- `src/test/kotlin/terminal/buffer/TerminalBufferCliBehaviorTest.kt` - high-level CLI behavior documentation tests
 - `docs/plans` - implementation planning documents used during development
 
 ## Improvements I would make next
 
 - Follow the terminal emulator rabbit hole further with more complex ANSI behavior, cursor modes, and similar features.
-- Add explicit `getCharacterAt` and `getAttributesAt` methods if the public API should mirror the spec wording more directly.
 - Tighten grapheme segmentation and width measurement toward fuller Unicode correctness.
 - Revisit some naming around `history` vs `screen + scrollback` accessors to make the API even more explicit.
 - Improve CLI ergonomics with better argument parsing and maybe command aliases.

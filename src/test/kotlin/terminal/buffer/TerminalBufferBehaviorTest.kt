@@ -22,6 +22,102 @@ class TerminalBufferBehaviorTest {
             assertEquals("i   ", buffer.getHistoryLine(2))
             assertEquals("abcd\nefgh\ni   ", buffer.getHistoryContent())
         }
+
+        @Test
+        fun character_and_attribute_access_return_null_for_empty_cells_and_values_for_written_cells() {
+            val buffer = buffer()
+
+            buffer.writeText("abcdefghi")
+
+            assertEquals("a", buffer.getHistoryCharacter(0, 0))
+            assertEquals("i", buffer.getHistoryCharacter(0, 2))
+            assertEquals(null, buffer.getHistoryCharacter(1, 2))
+            assertEquals(CellAttributes(), buffer.getHistoryAttributes(0, 0))
+            assertEquals(CellAttributes(), buffer.getHistoryAttributes(1, 2))
+        }
+
+        @Test
+        fun clearing_the_screen_keeps_scrollback_but_replaces_visible_rows_with_blanks() {
+            val buffer = buffer()
+
+            buffer.writeText("abcdefghi")
+            buffer.clearScreen()
+
+            assertEquals("abcd\n    \n    ", buffer.getHistoryContent())
+        }
+    }
+
+    @Nested
+    inner class CursorBehavior {
+        @Test
+        fun cursor_starts_at_the_screen_origin() {
+            val buffer = buffer()
+
+            assertEquals(0, buffer.getCursorColumn())
+            assertEquals(0, buffer.getCursorRow())
+        }
+
+        @Test
+        fun cursor_movement_is_clamped_to_screen_bounds() {
+            val buffer = buffer()
+
+            buffer.moveCursorRight(99)
+            buffer.moveCursorDown(99)
+            assertEquals(3, buffer.getCursorColumn())
+            assertEquals(1, buffer.getCursorRow())
+
+            buffer.moveCursorLeft(99)
+            buffer.moveCursorUp(99)
+            assertEquals(0, buffer.getCursorColumn())
+            assertEquals(0, buffer.getCursorRow())
+        }
+
+        @Test
+        fun setting_cursor_on_a_wide_character_continuation_normalizes_to_the_grapheme_start() {
+            val buffer = buffer(width = 6)
+
+            buffer.writeText("👍🏻a")
+            buffer.setCursorPosition(column = 1, row = 0)
+
+            assertEquals(0, buffer.getCursorColumn())
+            assertEquals(0, buffer.getCursorRow())
+        }
+    }
+
+    @Nested
+    inner class WriteBehavior {
+        @Test
+        fun writing_text_overwrites_from_the_cursor_and_advances_it() {
+            val buffer = buffer()
+
+            buffer.writeText("abc")
+
+            assertEquals("abc ", buffer.getScreenLine(0))
+            assertEquals(3, buffer.getCursorColumn())
+            assertEquals(0, buffer.getCursorRow())
+        }
+
+        @Test
+        fun writing_at_the_end_of_a_row_wraps_onto_the_next_row() {
+            val buffer = buffer(height = 3)
+
+            buffer.setCursorPosition(column = 3, row = 0)
+            buffer.writeText("AB")
+
+            assertEquals("   A", buffer.getScreenLine(0))
+            assertEquals("B   ", buffer.getScreenLine(1))
+        }
+
+        @Test
+        fun writing_past_the_bottom_scrolls_the_oldest_visible_row_into_history() {
+            val buffer = buffer()
+
+            buffer.writeText("abcdefghi")
+
+            assertEquals("efgh", buffer.getScreenLine(0))
+            assertEquals("i   ", buffer.getScreenLine(1))
+            assertEquals("abcd\nefgh\ni   ", buffer.getHistoryContent())
+        }
     }
 
     @Nested
@@ -36,6 +132,144 @@ class TerminalBufferBehaviorTest {
 
             assertEquals("abcd", buffer.getScreenLine(0))
             assertEquals("xxxx", buffer.getScreenLine(1))
+        }
+
+        @Test
+        fun fill_with_null_clears_the_current_row() {
+            val buffer = buffer()
+
+            buffer.writeText("abcd")
+            buffer.setCursorPosition(column = 0, row = 1)
+            buffer.writeText("xy")
+            buffer.setCursorPosition(column = 0, row = 1)
+            buffer.fillLine(null)
+
+            assertEquals("    ", buffer.getScreenLine(1))
+        }
+
+        @Test
+        fun fill_uses_the_current_attributes_for_the_whole_row() {
+            val buffer = buffer()
+            val attributes = CellAttributes(
+                foreground = TerminalColor.GREEN,
+                background = TerminalColor.BLACK,
+                styles = setOf(TextStyle.BOLD),
+            )
+
+            buffer.setCurrentAttributes(attributes)
+            buffer.fillLine('x')
+
+            assertEquals(attributes, buffer.getScreenAttributes(0, 0))
+            assertEquals(attributes, buffer.getScreenAttributes(3, 0))
+        }
+    }
+
+    @Nested
+    inner class InsertBehavior {
+        @Test
+        fun inserting_text_shifts_existing_cells_to_the_right() {
+            val buffer = buffer(width = 5)
+
+            buffer.writeText("abc")
+            buffer.setCursorPosition(column = 1, row = 0)
+            buffer.insertText("Z")
+
+            assertEquals("aZbc ", buffer.getScreenLine(0))
+        }
+
+        @Test
+        fun inserting_text_can_wrap_onto_following_visible_rows() {
+            val buffer = buffer()
+
+            buffer.writeText("abcdef")
+            buffer.setCursorPosition(column = 2, row = 0)
+            buffer.insertText("XY")
+
+            assertEquals("abXY", buffer.getScreenLine(0))
+            assertEquals("cdef", buffer.getScreenLine(1))
+        }
+    }
+
+    @Nested
+    inner class ResizeBehavior {
+        @Test
+        fun growing_width_preserves_existing_visible_content_and_pads_on_the_right() {
+            val buffer = buffer()
+
+            buffer.writeText("a界")
+            buffer.resize(newWidth = 6, newHeight = 2)
+
+            assertEquals("a界   ", buffer.getScreenLine(0))
+        }
+
+        @Test
+        fun shrinking_width_keeps_only_whole_graphemes_that_still_fit() {
+            val buffer = buffer(width = 6)
+
+            buffer.writeText("ab界")
+            buffer.resize(newWidth = 3, newHeight = 2)
+
+            assertEquals("ab ", buffer.getScreenLine(0))
+        }
+
+        @Test
+        fun shrinking_height_moves_trimmed_rows_into_scrollback() {
+            val buffer = buffer(height = 3)
+
+            buffer.fillLine('a')
+            buffer.setCursorPosition(0, 1)
+            buffer.fillLine('b')
+            buffer.setCursorPosition(0, 2)
+            buffer.fillLine('c')
+            buffer.resize(newWidth = 4, newHeight = 2)
+
+            assertEquals("aaaa\nbbbb\ncccc", buffer.getHistoryContent())
+        }
+
+        @Test
+        fun resize_clamps_the_cursor_into_the_new_bounds() {
+            val buffer = buffer(width = 6, height = 3)
+
+            buffer.setCursorPosition(column = 5, row = 2)
+            buffer.resize(newWidth = 3, newHeight = 2)
+
+            assertEquals(2, buffer.getCursorColumn())
+            assertEquals(1, buffer.getCursorRow())
+        }
+    }
+
+    @Nested
+    inner class UnicodeBehavior {
+        @Test
+        fun wide_graphemes_occupy_a_start_cell_and_a_continuation_cell() {
+            val buffer = buffer(width = 6)
+
+            buffer.writeText("界")
+
+            assertEquals(CellKind.GraphemeStart("界", 2), buffer.getScreenCell(0, 0).kind)
+            assertEquals(CellKind.Continuation, buffer.getScreenCell(1, 0).kind)
+        }
+
+        @Test
+        fun cursor_movement_skips_continuation_cells_of_wide_graphemes() {
+            val buffer = buffer(width = 6)
+
+            buffer.writeText("界a")
+            buffer.setCursorPosition(0, 0)
+            buffer.moveCursorRight()
+
+            assertEquals(2, buffer.getCursorColumn())
+        }
+
+        @Test
+        fun overwriting_on_a_continuation_cell_clears_the_whole_grapheme() {
+            val buffer = buffer(width = 8)
+
+            buffer.writeText("👍🏻a")
+            buffer.setCursorPosition(1, 0)
+            buffer.writeText("b")
+
+            assertEquals("b a     ", buffer.getScreenLine(0))
         }
     }
 }

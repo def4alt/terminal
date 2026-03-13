@@ -138,7 +138,15 @@ class TerminalBuffer(
 
     fun getScreenCell(column: Int, row: Int): Cell = screen[row].cellAt(column)
 
+    fun getScreenCharacter(column: Int, row: Int): String? = characterOf(getScreenCell(column, row))
+
+    fun getScreenAttributes(column: Int, row: Int): CellAttributes = getScreenCell(column, row).attributes
+
     fun getHistoryCell(column: Int, row: Int): Cell = historyLines()[row].cellAt(column)
+
+    fun getHistoryCharacter(column: Int, row: Int): String? = characterOf(getHistoryCell(column, row))
+
+    fun getHistoryAttributes(column: Int, row: Int): CellAttributes = getHistoryCell(column, row).attributes
 
     fun getHistoryLine(row: Int): String = historyLines()[row].toDisplayText()
 
@@ -149,6 +157,12 @@ class TerminalBuffer(
     private fun blankCell(): Cell = Cell()
 
     private fun blankLine(): ScreenLine = ScreenLine.blank(width)
+
+    private fun characterOf(cell: Cell): String? = when (val kind = cell.kind) {
+        CellKind.Empty -> null
+        CellKind.Continuation -> null
+        is CellKind.GraphemeStart -> kind.text
+    }
 
     private fun historyLines(): List<ScreenLine> = scrollback + screen
 

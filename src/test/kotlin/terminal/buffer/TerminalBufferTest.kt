@@ -287,6 +287,20 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun get_screen_character_and_attributes_return_spec_level_view_of_screen_content() {
+        val buffer = buffer(height = 2)
+        val attributes = attributes(TerminalColor.MAGENTA, TerminalColor.BLACK, TextStyle.BOLD)
+
+        buffer.setCurrentAttributes(attributes)
+        buffer.writeText("Q")
+
+        assertEquals("Q", buffer.getScreenCharacter(column = 0, row = 0))
+        assertEquals(null, buffer.getScreenCharacter(column = 1, row = 0))
+        assertEquals(attributes, buffer.getScreenAttributes(column = 0, row = 0))
+        assertEquals(CellAttributes(), buffer.getScreenAttributes(column = 1, row = 0))
+    }
+
+    @Test
     fun get_history_cell_returns_character_and_attributes_for_combined_history_position() {
         val buffer = buffer(height = 2)
 
@@ -294,6 +308,20 @@ class TerminalBufferTest {
 
         assertEquals(Cell(CellKind.GraphemeStart("a", 1), CellAttributes()), buffer.getHistoryCell(column = 0, row = 0))
         assertEquals(Cell(CellKind.GraphemeStart("e", 1), CellAttributes()), buffer.getHistoryCell(column = 0, row = 1))
+    }
+
+    @Test
+    fun get_history_character_and_attributes_return_spec_level_view_of_scrollback_and_screen() {
+        val buffer = buffer(height = 2)
+
+        buffer.writeText("abcdefghi")
+
+        assertEquals("a", buffer.getHistoryCharacter(column = 0, row = 0))
+        assertEquals("e", buffer.getHistoryCharacter(column = 0, row = 1))
+        assertEquals("i", buffer.getHistoryCharacter(column = 0, row = 2))
+        assertEquals(null, buffer.getHistoryCharacter(column = 1, row = 2))
+        assertEquals(CellAttributes(), buffer.getHistoryAttributes(column = 0, row = 0))
+        assertEquals(CellAttributes(), buffer.getHistoryAttributes(column = 1, row = 2))
     }
 
     @Test
