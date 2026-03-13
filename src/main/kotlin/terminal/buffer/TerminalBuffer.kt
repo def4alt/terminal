@@ -573,7 +573,7 @@ class TerminalBuffer(
     }
 
     private fun editLogicalScreenLines(): MutableList<LogicalLine> {
-        return rowsToLogicalLines(screen, preserveBlankCells = false)
+        return logicalScreenLines.map { it.trimmedCopy() }.toMutableList()
     }
 
     private fun rowsToLogicalLines(rows: List<BufferRow>, preserveBlankCells: Boolean = false): MutableList<LogicalLine> {

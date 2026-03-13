@@ -35,6 +35,14 @@ internal class LogicalLine(
 
     fun copyLine(): LogicalLine = LogicalLine(graphemes.toMutableList())
 
+    fun trimmedCopy(): LogicalLine {
+        val copy = graphemes.toMutableList()
+        while (copy.isNotEmpty() && copy.last().isBlank()) {
+            copy.removeLast()
+        }
+        return LogicalLine(copy)
+    }
+
     fun displayWidth(): Int = graphemes.sumOf { it.displayWidth }
 
     fun toDisplayText(): String = graphemes.joinToString(separator = "") { if (it.isBlank()) " " else it.text }

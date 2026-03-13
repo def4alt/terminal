@@ -180,6 +180,23 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun logical_line_trimmed_copy_removes_trailing_blank_cells_from_edit_view() {
+        val line = LogicalLine()
+        line.append(
+            listOf(
+                StyledGrapheme("a", 1, CellAttributes()),
+                StyledGrapheme.blank(),
+                StyledGrapheme.blank(),
+            ),
+        )
+
+        val trimmed = line.trimmedCopy()
+
+        assertEquals("a", trimmed.toDisplayText())
+        assertEquals(1, trimmed.graphemeCount())
+    }
+
+    @Test
     fun set_current_attributes_changes_attributes_for_future_edits() {
         val buffer = buffer()
         val attributes = attributes(TerminalColor.GREEN, TerminalColor.BLACK, TextStyle.BOLD, TextStyle.UNDERLINE)
