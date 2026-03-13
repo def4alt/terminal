@@ -221,6 +221,20 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun screen_line_converts_to_logical_line_with_or_without_trailing_blanks() {
+        val line = ScreenLine.blank(4)
+        line.writeGrapheme(0, CellKind.GraphemeStart("a", 1), CellAttributes())
+
+        val projected = line.toLogicalLine(keepTrailingBlanks = true)
+        val editable = line.toLogicalLine(keepTrailingBlanks = false)
+
+        assertEquals(4, projected.graphemeCount())
+        assertEquals(1, editable.graphemeCount())
+        assertEquals("a   ", projected.toDisplayText())
+        assertEquals("a", editable.toDisplayText())
+    }
+
+    @Test
     fun set_current_attributes_changes_attributes_for_future_edits() {
         val buffer = buffer()
         val attributes = attributes(TerminalColor.GREEN, TerminalColor.BLACK, TextStyle.BOLD, TextStyle.UNDERLINE)

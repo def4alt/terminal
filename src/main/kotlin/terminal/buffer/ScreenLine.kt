@@ -57,6 +57,28 @@ internal class ScreenLine private constructor(
         return graphemes
     }
 
+    fun toLogicalLine(keepTrailingBlanks: Boolean): terminal.buffer.LogicalLine {
+        val line = terminal.buffer.LogicalLine()
+
+        for (cell in cells) {
+            when (val kind = cell.kind) {
+                CellKind.Empty -> line.append(listOf(terminal.buffer.StyledGrapheme.blank()))
+                CellKind.Continuation -> Unit
+                is CellKind.GraphemeStart -> line.append(
+                    listOf(
+                        terminal.buffer.StyledGrapheme(
+                            text = kind.text,
+                            displayWidth = kind.displayWidth,
+                            attributes = cell.attributes,
+                        ),
+                    ),
+                )
+            }
+        }
+
+        return if (keepTrailingBlanks) line else line.trimmedCopy()
+    }
+
     fun styledGraphemes(): List<terminal.buffer.StyledGrapheme> {
         return graphemes().map { grapheme ->
             terminal.buffer.StyledGrapheme(
@@ -65,20 +87,6 @@ internal class ScreenLine private constructor(
                 attributes = grapheme.attributes,
             )
         }
-    }
-
-    fun styledUnitsPreservingBlanks(): List<terminal.buffer.StyledGrapheme> {
-        val units = mutableListOf<terminal.buffer.StyledGrapheme>()
-
-        for (cell in cells) {
-            when (val kind = cell.kind) {
-                CellKind.Empty -> units += terminal.buffer.StyledGrapheme.blank()
-                CellKind.Continuation -> Unit
-                is CellKind.GraphemeStart -> units += terminal.buffer.StyledGrapheme(kind.text, kind.displayWidth, cell.attributes)
-            }
-        }
-
-        return units
     }
 
     fun writeGrapheme(column: Int, kind: CellKind.GraphemeStart, attributes: CellAttributes) {

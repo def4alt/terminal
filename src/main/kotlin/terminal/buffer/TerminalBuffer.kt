@@ -436,7 +436,7 @@ class TerminalBuffer(
     }
 
     private fun moveLineToScrollback(line: BufferRow) {
-        logicalScrollbackLines.addAll(rowsToLogicalLines(listOf(line), preserveBlankCells = true))
+        logicalScrollbackLines.addAll(rowsToLogicalLines(listOf(line), keepTrailingBlanks = true))
         trimLogicalScrollback()
     }
 
@@ -546,7 +546,7 @@ class TerminalBuffer(
 
     private fun syncLogicalScreenFromScreenRows() {
         logicalScreenLines.clear()
-        logicalScreenLines.addAll(rowsToLogicalLines(screen, preserveBlankCells = true))
+        logicalScreenLines.addAll(rowsToLogicalLines(screen, keepTrailingBlanks = true))
     }
 
     private fun scrollbackRows(): List<BufferRow> {
@@ -571,15 +571,15 @@ class TerminalBuffer(
         return logicalScreenLines.map { it.trimmedCopy() }.toMutableList()
     }
 
-    private fun rowsToLogicalLines(rows: List<BufferRow>, preserveBlankCells: Boolean = false): MutableList<LogicalLine> {
+    private fun rowsToLogicalLines(rows: List<BufferRow>, keepTrailingBlanks: Boolean): MutableList<LogicalLine> {
         val logicalLines = mutableListOf<LogicalLine>()
 
         for (row in rows) {
             if (!row.wrapsFromPrevious || logicalLines.isEmpty()) {
-                logicalLines += LogicalLine()
+                logicalLines += row.line.toLogicalLine(keepTrailingBlanks = keepTrailingBlanks)
+                continue
             }
-            val units = if (preserveBlankCells) row.line.styledUnitsPreservingBlanks() else row.line.styledGraphemes()
-            logicalLines.last().append(units)
+            logicalLines.last().append(row.line.toLogicalLine(keepTrailingBlanks = keepTrailingBlanks).graphemes())
         }
 
         return logicalLines
