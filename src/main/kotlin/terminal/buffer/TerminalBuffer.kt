@@ -109,10 +109,9 @@ class TerminalBuffer(
         val logicalCursor = currentLogicalCursorPosition()
 
         if (newWidth != width) {
-            resizeWidth(scrollback, newWidth)
-            resizeWidth(screen, newWidth, preserveRowCount = height)
             width = newWidth
-            syncLogicalStateFromRows()
+            rebuildScrollbackFromLogicalLines(logicalScrollbackLines)
+            rebuildScreenFromLogicalLines(logicalScreenLines)
         }
 
         when {
@@ -217,7 +216,7 @@ class TerminalBuffer(
         normalizeCursor()
 
         val cursor = currentLogicalCursorPosition()
-        val logicalLines = rowsToLogicalLines(screen, preserveBlankCells = false)
+        val logicalLines = editLogicalScreenLines()
         val line = logicalLines.getOrNull(cursor.logicalLineIndex) ?: return
         val deleteIndex = graphemeIndexAtOrAfterDisplayColumn(line, cursor.displayColumn) ?: return
 
@@ -231,7 +230,7 @@ class TerminalBuffer(
         normalizeCursor()
 
         val cursor = currentLogicalCursorPosition()
-        val logicalLines = rowsToLogicalLines(screen, preserveBlankCells = false)
+        val logicalLines = editLogicalScreenLines()
         val line = logicalLines.getOrNull(cursor.logicalLineIndex) ?: return
         val deleteIndex = graphemeIndexBeforeDisplayColumn(line, cursor.displayColumn) ?: return
 
@@ -438,6 +437,21 @@ class TerminalBuffer(
         lines.addAll(finalRows)
     }
 
+    private fun rebuildScrollbackFromLogicalLines(logicalLines: List<LogicalLine>) {
+        val rows = ViewportProjector.projectAllRows(
+            logicalLines = logicalLines,
+            width = width,
+        ).map { visualRow ->
+            BufferRow(
+                line = visualRow.screenLine,
+                wrapsFromPrevious = visualRow.startDisplayColumn > 0,
+            )
+        }
+
+        scrollback.clear()
+        scrollback.addAll(rows.takeLast(maxScrollbackLines))
+    }
+
     private fun trimScrollback() {
         while (scrollback.size > maxScrollbackLines) {
             scrollback.removeFirst()
@@ -553,6 +567,10 @@ class TerminalBuffer(
     private fun syncLogicalScreenFromScreenRows() {
         logicalScreenLines.clear()
         logicalScreenLines.addAll(rowsToLogicalLines(screen, preserveBlankCells = true))
+    }
+
+    private fun editLogicalScreenLines(): MutableList<LogicalLine> {
+        return rowsToLogicalLines(screen, preserveBlankCells = false)
     }
 
     private fun rowsToLogicalLines(rows: List<BufferRow>, preserveBlankCells: Boolean = false): MutableList<LogicalLine> {
