@@ -454,7 +454,7 @@ class TerminalBuffer(
         var displayColumn = cursorColumn
         var previousRow = cursorRow - 1
         while (previousRow >= 0 && screen[previousRow + 1].wrapsFromPrevious) {
-            displayColumn += rowDisplayWidth(screen[previousRow].line)
+            displayColumn += screen[previousRow].line.styledGraphemes().sumOf { it.displayWidth }
             previousRow -= 1
         }
 
@@ -462,63 +462,17 @@ class TerminalBuffer(
     }
 
     private fun restoreLogicalCursor(position: LogicalCursor) {
-        var currentLogicalLineIndex = -1
-        var row = 0
-
-        while (row < screen.size) {
-            if (!screen[row].wrapsFromPrevious) {
-                currentLogicalLineIndex += 1
-            }
-
-            if (currentLogicalLineIndex == position.lineIndex) {
-                var remaining = position.displayColumn
-                var currentRow = row
-
-                while (true) {
-                    val rowWidth = rowDisplayWidth(screen[currentRow].line)
-                    val hasContinuation = currentRow + 1 < screen.size && screen[currentRow + 1].wrapsFromPrevious
-
-                    if (remaining < rowWidth) {
-                        cursorRow = currentRow
-                        cursorColumn = remaining
-                        return
-                    }
-
-                    if (remaining == rowWidth) {
-                        if (hasContinuation) {
-                            cursorRow = currentRow + 1
-                            cursorColumn = 0
-                            return
-                        }
-
-                        if (rowWidth < width) {
-                            cursorRow = currentRow
-                            cursorColumn = rowWidth
-                            return
-                        }
-
-                        cursorRow = minOf(currentRow + 1, screen.lastIndex)
-                        cursorColumn = 0
-                        return
-                    }
-
-                    if (!hasContinuation) {
-                        cursorRow = currentRow
-                        cursorColumn = minOf(rowWidth, width - 1)
-                        return
-                    }
-
-                    remaining -= rowWidth
-                    currentRow += 1
-                }
-            }
-
-            row += 1
-        }
-    }
-
-    private fun rowDisplayWidth(line: ScreenLine): Int {
-        return line.styledGraphemes().sumOf { it.displayWidth }
+        val clamped = position.copy(
+            lineIndex = position.lineIndex.coerceIn(0, logicalScreenLines.lastIndex.coerceAtLeast(0)),
+            displayColumn = position.displayColumn.coerceAtLeast(0),
+        )
+        val (column, row) = CursorMapper.logicalToScreen(
+            cursor = clamped,
+            projection = screenProjection(),
+            width = width,
+        )
+        cursorColumn = column
+        cursorRow = row
     }
 
     private fun screenProjection(): ViewportProjection {

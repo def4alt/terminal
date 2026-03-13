@@ -13,7 +13,7 @@ internal object CursorMapper {
 
             val rowStart = row.startDisplayColumn
             val rowEnd = rowStart + row.displayWidth
-            if (cursor.displayColumn < rowStart || cursor.displayColumn > rowEnd) {
+            if (cursor.displayColumn < rowStart) {
                 continue
             }
 
@@ -25,11 +25,20 @@ internal object CursorMapper {
                 return 0 to (rowIndex + 1)
             }
 
-            val column = if (cursor.displayColumn == rowEnd && row.displayWidth < width) {
-                row.displayWidth
-            } else {
-                (cursor.displayColumn - rowStart).coerceIn(0, width - 1)
+            if (cursor.displayColumn > rowEnd && !hasContinuation) {
+                return (width - 1) to rowIndex
             }
+
+            if (cursor.displayColumn == rowEnd) {
+                if (row.displayWidth < width) {
+                    return row.displayWidth to rowIndex
+                }
+
+                val nextRow = minOf(rowIndex + 1, projection.visibleRows.lastIndex)
+                return 0 to nextRow
+            }
+
+            val column = (cursor.displayColumn - rowStart).coerceIn(0, width - 1)
             return column to rowIndex
         }
 
