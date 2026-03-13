@@ -1,11 +1,5 @@
 package terminal.buffer
 
-internal data class GraphemeRun(
-    val text: String,
-    val attributes: CellAttributes,
-    val displayWidth: Int,
-)
-
 internal class ScreenLine private constructor(
     private val cells: MutableList<Cell>,
 ) {
@@ -15,25 +9,14 @@ internal class ScreenLine private constructor(
         cells[column] = cell
     }
 
-    fun toCells(): MutableList<Cell> = cells.toMutableList()
-
-    fun toDisplayText(): String = cells.joinToString("") { cell ->
-        when (val kind = cell.kind) {
-            CellKind.Empty -> " "
-            CellKind.Continuation -> ""
-            is CellKind.GraphemeStart -> kind.text
-        }
-    }
-
-    fun visibleGraphemes(): List<GraphemeRun> {
-        val graphemes = mutableListOf<GraphemeRun>()
+    fun toDisplayText(): String = buildString {
         for (cell in cells) {
-            val kind = cell.kind
-            if (kind is CellKind.GraphemeStart) {
-                graphemes += GraphemeRun(kind.text, cell.attributes, kind.displayWidth)
+            when (val kind = cell.kind) {
+                CellKind.Empty -> append(' ')
+                CellKind.Continuation -> Unit
+                is CellKind.GraphemeStart -> append(kind.text)
             }
         }
-        return graphemes
     }
 
     fun resizeWidth(newWidth: Int): ScreenLine {
@@ -42,18 +25,23 @@ internal class ScreenLine private constructor(
         val resized = blank(newWidth)
         var column = 0
 
-        for (grapheme in visibleGraphemes()) {
-            if (column + grapheme.displayWidth > newWidth) {
+        for (cell in cells) {
+            val kind = cell.kind as? CellKind.GraphemeStart ?: continue
+            if (column + kind.displayWidth > newWidth) {
                 break
             }
 
-            for (cell in Grapheme(grapheme.text, grapheme.displayWidth).toCells(grapheme.attributes)) {
-                resized.replace(column, cell)
-                column += 1
-            }
+            resized.writeGrapheme(column, kind, cell.attributes)
+            column += kind.displayWidth
         }
 
         return resized
+    }
+
+    private fun writeGrapheme(column: Int, kind: CellKind.GraphemeStart, attributes: CellAttributes) {
+        for ((offset, cell) in Grapheme(kind.text, kind.displayWidth).toCells(attributes).withIndex()) {
+            replace(column + offset, cell)
+        }
     }
 
     companion object {
@@ -62,6 +50,9 @@ internal class ScreenLine private constructor(
             return ScreenLine(MutableList(width) { Cell() })
         }
 
-        fun fromCells(cells: MutableList<Cell>): ScreenLine = ScreenLine(cells)
+        fun filled(width: Int, cell: Cell): ScreenLine {
+            require(width > 0) { "width must be positive" }
+            return ScreenLine(MutableList(width) { cell })
+        }
     }
 }

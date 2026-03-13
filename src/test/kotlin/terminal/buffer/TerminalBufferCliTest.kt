@@ -7,6 +7,16 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TerminalBufferCliTest {
+    private fun cli(output: StringBuilder = StringBuilder()): TerminalBufferCli {
+        return TerminalBufferCli(output = output)
+    }
+
+    private fun runCommands(output: StringBuilder, vararg commands: String): String {
+        val cli = cli(output)
+        commands.forEach(cli::execute)
+        return output.toString()
+    }
+
     @Test
     fun render_help_includes_core_commands() {
         val help = renderHelp()
@@ -54,7 +64,7 @@ class TerminalBufferCliTest {
     @Test
     fun execute_help_writes_help_text_and_continues() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         val shouldContinue = cli.execute("help")
 
@@ -65,7 +75,7 @@ class TerminalBufferCliTest {
     @Test
     fun execute_show_writes_full_snapshot_and_continues() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         val shouldContinue = cli.execute("show")
 
@@ -76,7 +86,7 @@ class TerminalBufferCliTest {
 
     @Test
     fun execute_quit_returns_false_to_end_session() {
-        val cli = TerminalBufferCli(output = StringBuilder())
+        val cli = cli()
 
         val shouldContinue = cli.execute("quit")
 
@@ -86,7 +96,7 @@ class TerminalBufferCliTest {
     @Test
     fun execute_cursor_prints_current_position() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         cli.execute("cursor")
 
@@ -96,29 +106,23 @@ class TerminalBufferCliTest {
     @Test
     fun execute_set_cursor_moves_cursor() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "set-cursor 2 1", "cursor")
 
-        cli.execute("set-cursor 2 1")
-        cli.execute("cursor")
-
-        assertTrue(output.toString().contains("Cursor: (2, 1)"))
+        assertTrue(rendered.contains("Cursor: (2, 1)"))
     }
 
     @Test
     fun execute_move_right_updates_cursor() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "move right 3", "cursor")
 
-        cli.execute("move right 3")
-        cli.execute("cursor")
-
-        assertTrue(output.toString().contains("Cursor: (3, 0)"))
+        assertTrue(rendered.contains("Cursor: (3, 0)"))
     }
 
     @Test
     fun execute_screen_prints_visible_content_only() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         cli.execute("screen")
 
@@ -128,7 +132,7 @@ class TerminalBufferCliTest {
     @Test
     fun execute_history_prints_scrollback_plus_screen_content() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         cli.execute("history")
 
@@ -138,7 +142,7 @@ class TerminalBufferCliTest {
     @Test
     fun execute_attrs_prints_current_attributes() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         cli.execute("attrs")
 
@@ -148,54 +152,39 @@ class TerminalBufferCliTest {
     @Test
     fun execute_write_updates_screen_content() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "write hello", "screen")
 
-        cli.execute("write hello")
-        cli.execute("screen")
-
-        assertTrue(output.toString().contains("hello"))
+        assertTrue(rendered.contains("hello"))
     }
 
     @Test
     fun execute_insert_updates_screen_content() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "write abc", "set-cursor 1 0", "insert Z", "screen")
 
-        cli.execute("write abc")
-        cli.execute("set-cursor 1 0")
-        cli.execute("insert Z")
-        cli.execute("screen")
-
-        assertTrue(output.toString().contains("aZbc"))
+        assertTrue(rendered.contains("aZbc"))
     }
 
     @Test
     fun execute_resize_updates_screen_dimensions() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "resize 4 2", "screen")
 
-        cli.execute("resize 4 2")
-        cli.execute("screen")
-
-        assertTrue(output.toString().contains("    \n    \n"))
+        assertTrue(rendered.contains("    \n    \n"))
     }
 
     @Test
     fun execute_resize_preserves_visible_content_with_current_policy() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "write a界", "resize 4 4", "screen")
 
-        cli.execute("write a界")
-        cli.execute("resize 4 4")
-        cli.execute("screen")
-
-        assertTrue(output.toString().contains("a界 \n    \n    \n    \n"))
+        assertTrue(rendered.contains("a界 \n    \n    \n    \n"))
     }
 
     @Test
     fun execute_resize_rejects_invalid_arguments() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         cli.execute("resize nope 2")
 
@@ -205,92 +194,66 @@ class TerminalBufferCliTest {
     @Test
     fun execute_fill_with_character_updates_current_row() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "fill =", "screen")
 
-        cli.execute("fill =")
-        cli.execute("screen")
-
-        assertTrue(output.toString().contains("========"))
+        assertTrue(rendered.contains("========"))
     }
 
     @Test
     fun execute_fill_empty_clears_current_row() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "write hello", "set-cursor 0 0", "fill empty", "screen")
 
-        cli.execute("write hello")
-        cli.execute("set-cursor 0 0")
-        cli.execute("fill empty")
-        cli.execute("screen")
-
-        assertTrue(output.toString().contains("        "))
+        assertTrue(rendered.contains("        "))
     }
 
     @Test
     fun execute_append_line_scrolls_screen() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "write one", "append-line", "history")
 
-        cli.execute("write one")
-        cli.execute("append-line")
-        cli.execute("history")
-
-        assertTrue(output.toString().contains("one"))
+        assertTrue(rendered.contains("one"))
     }
 
     @Test
     fun execute_clear_screen_resets_visible_rows_only() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "write hello", "clear-screen", "screen")
 
-        cli.execute("write hello")
-        cli.execute("clear-screen")
-        cli.execute("screen")
-
-        assertTrue(output.toString().contains("        \n        \n        \n        "))
+        assertTrue(rendered.contains("        \n        \n        \n        "))
     }
 
     @Test
     fun execute_clear_all_resets_screen_and_history() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "write hello", "clear-all", "history")
 
-        cli.execute("write hello")
-        cli.execute("clear-all")
-        cli.execute("history")
-
-        assertTrue(output.toString().contains("        \n        \n        \n        "))
+        assertTrue(rendered.contains("        \n        \n        \n        "))
     }
 
     @Test
     fun execute_set_attrs_updates_current_attributes() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "set-attrs green default bold underline", "attrs")
 
-        cli.execute("set-attrs green default bold underline")
-        cli.execute("attrs")
-
-        assertTrue(output.toString().contains("fg=green"))
-        assertTrue(output.toString().contains("bg=default"))
-        assertTrue(output.toString().contains("bold"))
-        assertTrue(output.toString().contains("underline"))
+        assertTrue(rendered.contains("fg=green"))
+        assertTrue(rendered.contains("bg=default"))
+        assertTrue(rendered.contains("bold"))
+        assertTrue(rendered.contains("underline"))
     }
 
     @Test
     fun execute_set_attrs_accepts_default_colors_and_no_styles() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "set-attrs default default", "attrs")
 
-        cli.execute("set-attrs default default")
-        cli.execute("attrs")
-
-        assertTrue(output.toString().contains("fg=default bg=default styles=none"))
+        assertTrue(rendered.contains("fg=default bg=default styles=none"))
     }
 
     @Test
     fun execute_set_attrs_rejects_unknown_colors_or_styles() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         cli.execute("set-attrs nope default blink")
 
@@ -300,7 +263,7 @@ class TerminalBufferCliTest {
     @Test
     fun execute_unknown_command_writes_helpful_error() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         cli.execute("wat")
 
@@ -310,7 +273,7 @@ class TerminalBufferCliTest {
     @Test
     fun execute_missing_arguments_writes_helpful_error() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         cli.execute("set-cursor")
 
@@ -320,7 +283,7 @@ class TerminalBufferCliTest {
     @Test
     fun execute_move_without_count_writes_helpful_error() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         val shouldContinue = cli.execute("move down")
 
@@ -331,7 +294,7 @@ class TerminalBufferCliTest {
     @Test
     fun execute_move_with_invalid_count_writes_helpful_error() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         val shouldContinue = cli.execute("move down nope")
 
@@ -342,7 +305,7 @@ class TerminalBufferCliTest {
     @Test
     fun execute_set_cursor_without_both_coordinates_writes_helpful_error() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         val shouldContinue = cli.execute("set-cursor 2")
 
@@ -353,7 +316,7 @@ class TerminalBufferCliTest {
     @Test
     fun execute_set_cursor_with_invalid_coordinates_writes_helpful_error() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val cli = cli(output)
 
         val shouldContinue = cli.execute("set-cursor nope 1")
 
@@ -364,13 +327,9 @@ class TerminalBufferCliTest {
     @Test
     fun execute_reset_reinitializes_buffer_with_original_dimensions() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "write hello", "reset", "screen")
 
-        cli.execute("write hello")
-        cli.execute("reset")
-        cli.execute("screen")
-
-        assertTrue(output.toString().contains("        \n        \n        \n        "))
+        assertTrue(rendered.contains("        \n        \n        \n        "))
     }
 
     @Test
@@ -403,11 +362,8 @@ class TerminalBufferCliTest {
     @Test
     fun cli_write_and_show_preserve_emoji_modifier_sequence_visually() {
         val output = StringBuilder()
-        val cli = TerminalBufferCli(output = output)
+        val rendered = runCommands(output, "write 👍🏻a", "show")
 
-        cli.execute("write 👍🏻a")
-        cli.execute("show")
-
-        assertTrue(output.toString().contains("👍🏻a"))
+        assertTrue(rendered.contains("👍🏻a"))
     }
 }

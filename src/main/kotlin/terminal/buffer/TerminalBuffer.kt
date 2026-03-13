@@ -39,7 +39,7 @@ class TerminalBuffer(
     }
 
     fun fillLine(character: Char?) {
-        screen[cursorRow] = ScreenLine.fromCells(MutableList(width) { fillCell(character) })
+        screen[cursorRow] = ScreenLine.filled(width, fillCell(character))
     }
 
     fun insertText(text: String) {
@@ -75,12 +75,8 @@ class TerminalBuffer(
         require(newHeight > 0) { "newHeight must be positive" }
 
         if (newWidth != width) {
-            for (index in scrollback.indices) {
-                scrollback[index] = scrollback[index].resizeWidth(newWidth)
-            }
-            for (index in screen.indices) {
-                screen[index] = screen[index].resizeWidth(newWidth)
-            }
+            resizeWidth(scrollback, newWidth)
+            resizeWidth(screen, newWidth)
             width = newWidth
         }
 
@@ -90,33 +86,28 @@ class TerminalBuffer(
             }
 
             newHeight < height -> repeat(height - newHeight) {
-                scrollback += screen.removeFirst()
-                trimScrollback()
+                moveLineToScrollback(screen.removeFirst())
             }
         }
 
         height = newHeight
-        clampCursor()
-        normalizeCursor()
+        normalizeCursorPosition()
     }
 
     fun setCursorPosition(column: Int, row: Int) {
         cursorColumn = column
         cursorRow = row
-        clampCursor()
-        normalizeCursor()
+        normalizeCursorPosition()
     }
 
     fun moveCursorUp(count: Int = 1) {
         cursorRow -= count
-        clampCursor()
-        normalizeCursor()
+        normalizeCursorPosition()
     }
 
     fun moveCursorDown(count: Int = 1) {
         cursorRow += count
-        clampCursor()
-        normalizeCursor()
+        normalizeCursorPosition()
     }
 
     fun moveCursorLeft(count: Int = 1) {
@@ -140,25 +131,26 @@ class TerminalBuffer(
                 cursorColumn += 1
             }
         }
-        clampCursor()
-        normalizeCursor()
+        normalizeCursorPosition()
     }
 
     fun getScreenLine(row: Int): String = screen[row].toDisplayText()
 
     fun getScreenCell(column: Int, row: Int): Cell = screen[row].cellAt(column)
 
-    fun getHistoryCell(column: Int, row: Int): Cell = (scrollback + screen)[row].cellAt(column)
+    fun getHistoryCell(column: Int, row: Int): Cell = historyLines()[row].cellAt(column)
 
-    fun getHistoryLine(row: Int): String = (scrollback + screen)[row].toDisplayText()
+    fun getHistoryLine(row: Int): String = historyLines()[row].toDisplayText()
 
     fun getScreenContent(): String = screen.joinToString("\n") { it.toDisplayText() }
 
-    fun getHistoryContent(): String = (scrollback + screen).joinToString("\n") { it.toDisplayText() }
+    fun getHistoryContent(): String = historyLines().joinToString("\n") { it.toDisplayText() }
 
     private fun blankCell(): Cell = Cell()
 
     private fun blankLine(): ScreenLine = ScreenLine.blank(width)
+
+    private fun historyLines(): List<ScreenLine> = scrollback + screen
 
     private fun fillCell(character: Char?): Cell {
         if (character == null) {
@@ -231,6 +223,11 @@ class TerminalBuffer(
         cursorRow = cursorRow.coerceIn(0, height - 1)
     }
 
+    private fun normalizeCursorPosition() {
+        clampCursor()
+        normalizeCursor()
+    }
+
     private fun normalizeCursor() {
         while (cursorColumn > 0 && screen[cursorRow].cellAt(cursorColumn).kind == CellKind.Continuation) {
             cursorColumn -= 1
@@ -267,10 +264,20 @@ class TerminalBuffer(
     }
 
     private fun scrollUpOneLine() {
-        scrollback += screen.removeFirst()
-        trimScrollback()
+        moveLineToScrollback(screen.removeFirst())
         screen += blankLine()
         cursorRow = height - 1
+    }
+
+    private fun moveLineToScrollback(line: ScreenLine) {
+        scrollback += line
+        trimScrollback()
+    }
+
+    private fun resizeWidth(lines: MutableList<ScreenLine>, newWidth: Int) {
+        for (index in lines.indices) {
+            lines[index] = lines[index].resizeWidth(newWidth)
+        }
     }
 
     private fun trimScrollback() {
