@@ -11,6 +11,11 @@ internal class LogicalLine(
         graphemes.addAll(index, items)
     }
 
+    fun replace(start: Int, count: Int, value: List<StyledGrapheme>) {
+        delete(start, count)
+        insert(start, value)
+    }
+
     fun delete(index: Int, count: Int): List<StyledGrapheme> {
         val deleted = mutableListOf<StyledGrapheme>()
 
