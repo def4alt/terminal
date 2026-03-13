@@ -223,6 +223,78 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun delete_characters_removes_text_at_cursor_and_shifts_remaining_content_left() {
+        val buffer = buffer(width = 5, height = 2)
+
+        buffer.writeText("abcde")
+        buffer.setCursorPosition(column = 1, row = 0)
+        buffer.deleteCharacters()
+
+        assertEquals("acde ", buffer.getScreenLine(0))
+        assertCursor(buffer, column = 1, row = 0)
+    }
+
+    @Test
+    fun delete_characters_removes_wide_graphemes_as_one_unit() {
+        val buffer = buffer(width = 6, height = 2)
+
+        buffer.writeText("a界bc")
+        buffer.setCursorPosition(column = 1, row = 0)
+        buffer.deleteCharacters()
+
+        assertEquals("abc   ", buffer.getScreenLine(0))
+        assertEquals(CellKind.GraphemeStart("b", 1), buffer.getScreenCell(column = 1, row = 0).kind)
+        assertEquals(CellKind.Empty, buffer.getScreenCell(column = 3, row = 0).kind)
+    }
+
+    @Test
+    fun delete_characters_normalizes_from_continuation_cells_before_deleting() {
+        val buffer = buffer(width = 6, height = 2)
+
+        buffer.writeText("界ab")
+        buffer.setCursorPosition(column = 1, row = 0)
+        buffer.deleteCharacters()
+
+        assertEquals("ab    ", buffer.getScreenLine(0))
+        assertCursor(buffer, column = 0, row = 0)
+    }
+
+    @Test
+    fun backspace_deletes_the_grapheme_before_the_cursor_and_shifts_left() {
+        val buffer = buffer(width = 5, height = 2)
+
+        buffer.writeText("abcde")
+        buffer.backspace()
+
+        assertEquals("abcd ", buffer.getScreenLine(0))
+        assertCursor(buffer, column = 4, row = 0)
+    }
+
+    @Test
+    fun backspace_removes_wide_graphemes_as_one_unit() {
+        val buffer = buffer(width = 6, height = 2)
+
+        buffer.writeText("a界bc")
+        buffer.setCursorPosition(column = 3, row = 0)
+        buffer.backspace()
+
+        assertEquals("abc   ", buffer.getScreenLine(0))
+        assertCursor(buffer, column = 1, row = 0)
+    }
+
+    @Test
+    fun backspace_at_start_of_row_keeps_content_unchanged() {
+        val buffer = buffer(width = 5, height = 2)
+
+        buffer.writeText("abc")
+        buffer.setCursorPosition(column = 0, row = 0)
+        buffer.backspace()
+
+        assertEquals("abc  ", buffer.getScreenLine(0))
+        assertCursor(buffer, column = 0, row = 0)
+    }
+
+    @Test
     fun insert_empty_line_at_bottom_scrolls_top_visible_line_into_scrollback() {
         val buffer = buffer(height = 2)
 

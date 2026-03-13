@@ -52,6 +52,22 @@ class TerminalBuffer(
         }
     }
 
+    fun deleteCharacters(count: Int = 1) {
+        require(count >= 0) { "count must be non-negative" }
+
+        repeat(count) {
+            deleteOneCharacter()
+        }
+    }
+
+    fun backspace(count: Int = 1) {
+        require(count >= 0) { "count must be non-negative" }
+
+        repeat(count) {
+            backspaceOneCharacter()
+        }
+    }
+
     fun insertEmptyLineAtBottom() {
         scrollUpOneLine()
     }
@@ -172,6 +188,66 @@ class TerminalBuffer(
         }
 
         return Cell(kind = CellKind.GraphemeStart(character.toString(), 1), attributes = currentAttributes)
+    }
+
+    private fun deleteOneCharacter() {
+        normalizeCursor()
+
+        val line = screen[cursorRow]
+        val graphemes = line.graphemes()
+        val deleteIndex = graphemes.indexOfFirst { it.column >= cursorColumn }
+        if (deleteIndex == -1) {
+            return
+        }
+
+        val deleted = graphemes[deleteIndex]
+        val rewritten = ScreenLine.blank(width)
+
+        for ((index, grapheme) in graphemes.withIndex()) {
+            if (index == deleteIndex) {
+                continue
+            }
+
+            val targetColumn = if (grapheme.column < deleted.column) {
+                grapheme.column
+            } else {
+                grapheme.column - deleted.kind.displayWidth
+            }
+
+            if (targetColumn < 0 || targetColumn + grapheme.kind.displayWidth > width) {
+                continue
+            }
+
+            rewritten.writeGrapheme(targetColumn, grapheme.kind, grapheme.attributes)
+        }
+
+        screen[cursorRow] = rewritten
+        normalizeCursorPosition()
+    }
+
+    private fun backspaceOneCharacter() {
+        normalizeCursor()
+        if (cursorColumn == 0) {
+            if (cursorRow == 0) {
+                return
+            }
+
+            moveCursorToLastGraphemeOfPreviousRow() ?: return
+            deleteOneCharacter()
+            return
+        }
+
+        moveCursorLeft()
+        deleteOneCharacter()
+    }
+
+    private fun moveCursorToLastGraphemeOfPreviousRow(): Unit? {
+        val previousRow = cursorRow - 1
+        val previousGrapheme = screen[previousRow].graphemes().lastOrNull() ?: return null
+
+        cursorRow = previousRow
+        cursorColumn = previousGrapheme.column
+        return Unit
     }
 
     private fun insertCellAt(row: Int, column: Int, cell: Cell) {

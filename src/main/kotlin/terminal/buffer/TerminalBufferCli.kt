@@ -20,6 +20,8 @@ fun renderHelp(): String = buildString {
     appendLine("set-attrs <fg> <bg> [styles...]")
     appendLine("write <text>")
     appendLine("insert <text>")
+    appendLine("delete <count>")
+    appendLine("backspace")
     appendLine("fill <char|empty>")
     appendLine("append-line")
     appendLine("clear-screen")
@@ -133,6 +135,23 @@ class TerminalBufferCli(
 
             trimmed.startsWith("insert ") -> {
                 buffer.insertText(commandLine.substringAfter("insert "))
+                true
+            }
+
+            parts.firstOrNull() == "delete" -> {
+                if (parts.size != 2) {
+                    return invalidUsage()
+                }
+                val count = parts[1].toIntOrNull() ?: return invalidUsage()
+                if (count < 0) {
+                    return invalidUsage()
+                }
+                buffer.deleteCharacters(count)
+                true
+            }
+
+            parts == listOf("backspace") -> {
+                buffer.backspace()
                 true
             }
 

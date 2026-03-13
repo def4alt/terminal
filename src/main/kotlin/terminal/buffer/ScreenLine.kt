@@ -3,6 +3,12 @@ package terminal.buffer
 internal class ScreenLine private constructor(
     private val cells: MutableList<Cell>,
 ) {
+    data class StyledGrapheme(
+        val column: Int,
+        val kind: CellKind.GraphemeStart,
+        val attributes: CellAttributes,
+    )
+
     fun cellAt(column: Int): Cell = cells[column]
 
     fun replace(column: Int, cell: Cell) {
@@ -38,7 +44,18 @@ internal class ScreenLine private constructor(
         return resized
     }
 
-    private fun writeGrapheme(column: Int, kind: CellKind.GraphemeStart, attributes: CellAttributes) {
+    fun graphemes(): List<StyledGrapheme> {
+        val graphemes = mutableListOf<StyledGrapheme>()
+
+        for ((column, cell) in cells.withIndex()) {
+            val kind = cell.kind as? CellKind.GraphemeStart ?: continue
+            graphemes += StyledGrapheme(column = column, kind = kind, attributes = cell.attributes)
+        }
+
+        return graphemes
+    }
+
+    fun writeGrapheme(column: Int, kind: CellKind.GraphemeStart, attributes: CellAttributes) {
         for ((offset, cell) in Grapheme(kind.text, kind.displayWidth).toCells(attributes).withIndex()) {
             replace(column + offset, cell)
         }

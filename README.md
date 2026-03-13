@@ -40,7 +40,7 @@ flowchart TD
 - Each cell stores a `CellKind` plus foreground color, background color, and style flags.
 - The buffer tracks current attributes that are applied to future edits.
 - Cursor position can be read, set, and moved with bounds clamping.
-- Editing supports overwrite writes, insert writes, line fill, bottom-line insertion, screen clear, and screen+scrollback clear.
+- Editing supports overwrite writes, insert writes, delete-at-cursor behavior, backspace behavior, line fill, bottom-line insertion, screen clear, and screen+scrollback clear.
 - Editing also supports `resize(newWidth, newHeight)` with a deterministic no-reflow policy.
 - Content access supports cells, characters, attributes, lines, visible screen content, and combined history+screen content.
 - The project includes an interactive CLI for manually exercising the buffer.
@@ -104,6 +104,8 @@ write hello 日本 💛
 set-cursor 1 0
 set-attrs bright_cyan blue bold underline
 insert X
+delete 1
+backspace
 history
 set-cursor 0 3
 set-attrs bright_yellow default italic
@@ -120,6 +122,8 @@ The CLI is intentionally simple: it is a manual playground for the buffer, not a
 
 - `show` renders the visible screen with ANSI colors and styles when the terminal supports them.
 - `write <text>` and `insert <text>` treat everything after the command name as raw text.
+- `delete <count>` removes characters at the cursor and shifts the rest of the row left.
+- `backspace` removes the grapheme before the cursor and shifts the rest of the row left.
 - `fill <char|empty>` accepts either `empty` or the first character after `fill `.
 - `resize <width> <height>` changes the visible dimensions without reflowing logical lines.
 - `set-attrs <fg> <bg> <styles...>` uses names like `default`, `green`, `bright_red`, `bold`, `italic`, and `underline`.
@@ -148,6 +152,8 @@ val buffer = TerminalBuffer(width = 8, height = 3, maxScrollbackLines = 10)
 buffer.writeText("hello")
 buffer.setCursorPosition(column = 1, row = 0)
 buffer.insertText("X")
+buffer.deleteCharacters(1)
+buffer.backspace()
 buffer.fillLine('=')
 
 println(buffer.getScreenContent())

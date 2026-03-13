@@ -24,6 +24,8 @@ class TerminalBufferCliTest {
 
         assertTrue(help.contains("write <text>"))
         assertTrue(help.contains("insert <text>"))
+        assertTrue(help.contains("delete <count>"))
+        assertTrue(help.contains("backspace"))
         assertTrue(help.contains("resize <width> <height>"))
         assertTrue(help.contains("show"))
         assertTrue(help.contains("quit"))
@@ -245,6 +247,32 @@ class TerminalBufferCliTest {
         val rendered = runCommands(output, "write abc", "set-cursor 1 0", "insert Z", "screen")
 
         assertTrue(rendered.contains("aZbc"))
+    }
+
+    @Test
+    fun execute_delete_removes_text_at_cursor() {
+        val output = StringBuilder()
+        val rendered = runCommands(output, "write abcde", "set-cursor 1 0", "delete 1", "screen")
+
+        assertTrue(rendered.contains("acde "))
+    }
+
+    @Test
+    fun execute_delete_rejects_invalid_arguments() {
+        val output = StringBuilder()
+        val cli = cli(output)
+
+        cli.execute("delete nope")
+
+        assertTrue(output.toString().contains("Invalid command usage"))
+    }
+
+    @Test
+    fun execute_backspace_removes_text_before_cursor() {
+        val output = StringBuilder()
+        val rendered = runCommands(output, "write abcde", "backspace", "screen")
+
+        assertTrue(rendered.contains("abcd "))
     }
 
     @Test

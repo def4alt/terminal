@@ -78,6 +78,20 @@ class TerminalBufferCliBehaviorTest {
         }
 
         @Test
+        fun delete_removes_the_character_at_the_cursor_and_closes_the_gap() {
+            val rendered = runCommands("write a界bc", "set-cursor 1 0", "delete 1", "screen")
+
+            assertTrue(rendered.contains("abc"))
+        }
+
+        @Test
+        fun backspace_removes_the_grapheme_before_the_cursor_and_closes_the_gap() {
+            val rendered = runCommands("write a界bc", "set-cursor 3 0", "backspace", "screen")
+
+            assertTrue(rendered.contains("abc"))
+        }
+
+        @Test
         fun show_renders_screen_history_cursor_and_attributes_together() {
             val rendered = runCommands("write hi", "show")
 
