@@ -1,15 +1,22 @@
 package terminal.buffer
 
 internal object ViewportProjector {
+    fun projectAllRows(
+        logicalLines: List<LogicalLine>,
+        width: Int,
+    ): List<VisualRow> {
+        return logicalLines.flatMapIndexed { index, line ->
+            projectLogicalLine(line = line, logicalLineIndex = index, width = width)
+        }
+    }
+
     fun project(
         logicalLines: List<LogicalLine>,
         width: Int,
         height: Int,
         maxScrollbackLines: Int,
     ): ViewportProjection {
-        val allRows = logicalLines.flatMapIndexed { index, line ->
-            projectLogicalLine(line = line, logicalLineIndex = index, width = width)
-        }
+        val allRows = projectAllRows(logicalLines = logicalLines, width = width)
 
         val visibleRows = when {
             allRows.size >= height -> allRows.takeLast(height)

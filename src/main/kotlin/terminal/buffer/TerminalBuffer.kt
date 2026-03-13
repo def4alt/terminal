@@ -280,13 +280,14 @@ class TerminalBuffer(
     }
 
     private fun rebuildScreenFromLogicalLines(logicalLines: List<LogicalLine>) {
-        val rows = mutableListOf<BufferRow>()
-
-        for (logicalLine in logicalLines) {
-            val wrappedRows = logicalLine.wrap(width)
-            for ((index, row) in wrappedRows.withIndex()) {
-                rows += BufferRow(row, wrapsFromPrevious = index > 0)
-            }
+        val rows = ViewportProjector.projectAllRows(
+            logicalLines = logicalLines,
+            width = width,
+        ).map { visualRow ->
+            BufferRow(
+                line = visualRow.screenLine,
+                wrapsFromPrevious = visualRow.startDisplayColumn > 0,
+            )
         }
 
         val finalRows = when {
@@ -423,12 +424,14 @@ class TerminalBuffer(
             logicalLines.last().append(row.line.styledGraphemes())
         }
 
-        val resizedRows = mutableListOf<BufferRow>()
-        for (logicalLine in logicalLines) {
-            val wrappedRows = logicalLine.wrap(newWidth)
-            for ((index, wrappedRow) in wrappedRows.withIndex()) {
-                resizedRows += BufferRow(line = wrappedRow, wrapsFromPrevious = index > 0)
-            }
+        val resizedRows = ViewportProjector.projectAllRows(
+            logicalLines = logicalLines,
+            width = newWidth,
+        ).map { visualRow ->
+            BufferRow(
+                line = visualRow.screenLine,
+                wrapsFromPrevious = visualRow.startDisplayColumn > 0,
+            )
         }
 
         lines.clear()
