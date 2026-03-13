@@ -135,13 +135,10 @@ For behavior-doc tests, see `src/test/kotlin/terminal/buffer/TerminalBufferBehav
 
 ## Trade-offs and decisions
 
-- The model favors readability and clean code over aggressive optimization.
 - Cells are immutable values, which makes tests and behavior easier to reason about.
 - Wide characters are modeled explicitly as grapheme-start plus continuation cells rather than as raw chars in isolated cells.
-- The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
-- The CLI has a small ANSI renderer for `show`, but there is still no ANSI parser or escape-sequence interpreter.
+- There is still no ANSI parser or escape-sequence interpreter.
 - Resize is grapheme-safe and reflows wrapped content, but it still relies on pragmatic wrap metadata rather than a full terminal parser.
-- Full Unicode grapheme-boundary correctness across all edge cases is still a future improvement.
 
 ## Example usage in code
 
@@ -203,5 +200,8 @@ One important detail: string reconstruction APIs like `getScreenLine()` return v
 
 - Follow the terminal emulator rabbit hole further with more complex ANSI behavior, cursor modes, and similar features.
 - Tighten grapheme segmentation and width measurement toward fuller Unicode correctness.
-- Revisit some naming around `history` vs `screen + scrollback` accessors to make the API even more explicit.
-- Improve CLI ergonomics with better argument parsing and maybe command aliases.
+- Make all operations operate directly on logical content instead of buffer rows.
+- Add a real terminal control layer with newline/carriage-return semantics, tab handling, erase-in-line / erase-in-display operations, and more faithful cursor movement rules.
+- Introduce first-class viewport and scroll position handling so history navigation, rendering, and buffer mutation are separated more cleanly.
+- Add an ANSI parser/state machine so the buffer can consume realistic terminal output streams instead of only direct API calls and CLI commands.
+- Full Unicode grapheme-boundary correctness across all edge cases.
