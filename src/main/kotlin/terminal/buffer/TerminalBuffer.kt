@@ -22,6 +22,11 @@ class TerminalBuffer(
     private var cursorColumn = 0
     private var cursorRow = 0
 
+    private data class LogicalCursorPosition(
+        val logicalLineIndex: Int,
+        val displayColumn: Int,
+    )
+
     fun getCursorColumn(): Int = cursorColumn
 
     fun getCursorRow(): Int = cursorRow
@@ -90,6 +95,8 @@ class TerminalBuffer(
         require(newWidth > 0) { "newWidth must be positive" }
         require(newHeight > 0) { "newHeight must be positive" }
 
+        val logicalCursor = currentLogicalCursorPosition()
+
         if (newWidth != width) {
             resizeWidth(scrollback, newWidth)
             resizeWidth(screen, newWidth, preserveRowCount = height)
@@ -107,6 +114,7 @@ class TerminalBuffer(
         }
 
         height = newHeight
+        restoreLogicalCursor(logicalCursor)
         normalizeCursorPosition()
     }
 
@@ -398,6 +406,81 @@ class TerminalBuffer(
         while (scrollback.size > maxScrollbackLines) {
             scrollback.removeFirst()
         }
+    }
+
+    private fun currentLogicalCursorPosition(): LogicalCursorPosition {
+        var logicalLineIndex = -1
+        var row = 0
+
+        while (row <= cursorRow) {
+            if (!screen[row].wrapsFromPrevious) {
+                logicalLineIndex += 1
+            }
+            row += 1
+        }
+
+        var displayColumn = cursorColumn
+        var previousRow = cursorRow - 1
+        while (previousRow >= 0 && screen[previousRow + 1].wrapsFromPrevious) {
+            displayColumn += rowDisplayWidth(screen[previousRow].line)
+            previousRow -= 1
+        }
+
+        return LogicalCursorPosition(logicalLineIndex = logicalLineIndex.coerceAtLeast(0), displayColumn = displayColumn)
+    }
+
+    private fun restoreLogicalCursor(position: LogicalCursorPosition) {
+        var currentLogicalLineIndex = -1
+        var row = 0
+
+        while (row < screen.size) {
+            if (!screen[row].wrapsFromPrevious) {
+                currentLogicalLineIndex += 1
+            }
+
+            if (currentLogicalLineIndex == position.logicalLineIndex) {
+                var remaining = position.displayColumn
+                var currentRow = row
+
+                while (true) {
+                    val rowWidth = rowDisplayWidth(screen[currentRow].line)
+                    val hasContinuation = currentRow + 1 < screen.size && screen[currentRow + 1].wrapsFromPrevious
+
+                    if (remaining < rowWidth) {
+                        cursorRow = currentRow
+                        cursorColumn = remaining
+                        return
+                    }
+
+                    if (remaining == rowWidth) {
+                        if (hasContinuation) {
+                            cursorRow = currentRow + 1
+                            cursorColumn = 0
+                            return
+                        }
+
+                        cursorRow = minOf(currentRow + 1, screen.lastIndex)
+                        cursorColumn = 0
+                        return
+                    }
+
+                    if (!hasContinuation) {
+                        cursorRow = currentRow
+                        cursorColumn = minOf(rowWidth, width - 1)
+                        return
+                    }
+
+                    remaining -= rowWidth
+                    currentRow += 1
+                }
+            }
+
+            row += 1
+        }
+    }
+
+    private fun rowDisplayWidth(line: ScreenLine): Int {
+        return line.styledGraphemes().sumOf { it.displayWidth }
     }
 }
 

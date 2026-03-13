@@ -261,6 +261,19 @@ class TerminalBufferBehaviorTest {
 
             assertEquals("a界bc ", buffer.getScreenLine(0))
         }
+
+        @Test
+        fun resize_keeps_cursor_attached_to_the_same_logical_content_after_reflow() {
+            val buffer = buffer(height = 3)
+
+            buffer.writeText("abcdef")
+            buffer.setCursorPosition(column = 2, row = 1)
+
+            buffer.resize(newWidth = 6, newHeight = 3)
+
+            assertEquals(0, buffer.getCursorColumn())
+            assertEquals(1, buffer.getCursorRow())
+        }
     }
 
     @Nested
