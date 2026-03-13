@@ -85,6 +85,20 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun logical_line_insert_and_delete_operate_on_grapheme_units() {
+        val line = LogicalLine()
+        val styled = StyledGrapheme("界", 2, CellAttributes())
+
+        line.insert(0, listOf(styled))
+        assertEquals(1, line.graphemeCount())
+
+        val deleted = line.delete(0, 1)
+
+        assertEquals(listOf(styled), deleted)
+        assertEquals(0, line.graphemeCount())
+    }
+
+    @Test
     fun set_current_attributes_changes_attributes_for_future_edits() {
         val buffer = buffer()
         val attributes = attributes(TerminalColor.GREEN, TerminalColor.BLACK, TextStyle.BOLD, TextStyle.UNDERLINE)
