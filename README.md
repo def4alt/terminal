@@ -13,6 +13,8 @@ could sit on top later.
 ```mermaid
 flowchart TD
     S[Shell or producer] --> B[TerminalBuffer]
+    CLI[Interactive CLI] --> R[ANSI Snapshot Renderer]
+    R --> B
 
     B --> C[Cursor state]
     B --> A[Current attributes]
@@ -28,7 +30,6 @@ flowchart TD
     CELL --> BG[Background color]
     CELL --> ST[Style flags]
 
-    CLI[Interactive CLI] --> B
     T[JUnit tests] --> B
 ```
 
