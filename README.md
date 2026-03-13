@@ -41,7 +41,7 @@ flowchart TD
 - The buffer tracks current attributes that are applied to future edits.
 - Cursor position can be read, set, and moved with bounds clamping.
 - Editing supports overwrite writes, insert writes, delete-at-cursor behavior, backspace behavior, line fill, bottom-line insertion, screen clear, and screen+scrollback clear.
-- Editing also supports `resize(newWidth, newHeight)` with a deterministic no-reflow policy.
+- Editing also supports `resize(newWidth, newHeight)` with grapheme-safe reflow for wrapped content.
 - Content access supports cells, characters, attributes, lines, visible screen content, and combined history+screen content.
 - The project includes an interactive CLI for manually exercising the buffer.
 - `show` can render the visible screen with ANSI colors and text styles.
@@ -50,7 +50,7 @@ flowchart TD
 ## Solution overview
 
 The implementation keeps the model small on purpose.
-`TerminalBuffer` owns the mutable state: screen lines, scrollback lines, current attributes,
+`TerminalBuffer` owns the mutable state: visible rows, scrollback rows, current attributes,
 and cursor position. `Cell` and `CellAttributes` are immutable value types so written content
 keeps the attributes it had at write time.
 
@@ -63,10 +63,9 @@ The cell model now uses three explicit states:
 That lets the buffer represent both normal single-cell text and wide characters more cleanly.
 A wide grapheme is stored as one lead cell plus one continuation cell.
 
-The visible screen is stored as a fixed-height list of lines. Each line contains a fixed number
-of cells. Scrollback is stored as a bounded FIFO list of lines. When content moves past the bottom
-of the screen, the top visible line is moved into scrollback and the oldest scrollback line is
-discarded if the configured capacity is exceeded.
+The visible screen is stored as a fixed-height list of rows. Wrapped rows carry lightweight
+continuation metadata, and resize/edit operations can regroup those rows into logical grapheme
+content when they need to reflow. Scrollback is stored as a bounded FIFO list of rows.
 
 This keeps the architecture clear and easy to test, even if it is not the most optimized
 representation for a real production terminal emulator.
@@ -125,7 +124,7 @@ The CLI is intentionally simple: it is a manual playground for the buffer, not a
 - `delete <count>` removes characters at the cursor and shifts the rest of the row left.
 - `backspace` removes the grapheme before the cursor and shifts the rest of the row left.
 - `fill <char|empty>` accepts either `empty` or the first character after `fill `.
-- `resize <width> <height>` changes the visible dimensions without reflowing logical lines.
+- `resize <width> <height>` changes the visible dimensions and reflows wrapped content by grapheme.
 - `set-attrs <fg> <bg> <styles...>` uses names like `default`, `green`, `bright_red`, `bold`, `italic`, and `underline`.
 - `history` prints scrollback plus the current screen, while `screen` prints only the visible screen.
 
@@ -141,7 +140,7 @@ For behavior-doc tests, see `src/test/kotlin/terminal/buffer/TerminalBufferBehav
 - Wide characters are modeled explicitly as grapheme-start plus continuation cells rather than as raw chars in isolated cells.
 - The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
 - The CLI has a small ANSI renderer for `show`, but there is still no ANSI parser or escape-sequence interpreter.
-- Resize is grapheme-safe and predictable, but intentionally does not reflow previously wrapped content.
+- Resize is grapheme-safe and reflows wrapped content, but it still relies on pragmatic wrap metadata rather than a full terminal parser.
 - Full Unicode grapheme-boundary correctness across all edge cases is still a future improvement.
 
 ## Example usage in code
@@ -186,7 +185,10 @@ One important detail: string reconstruction APIs like `getScreenLine()` return v
 - `src/main/kotlin/terminal/buffer/Grapheme.kt` - internal grapheme model
 - `src/main/kotlin/terminal/buffer/GraphemeSegmenter.kt` - pragmatic grapheme segmentation
 - `src/main/kotlin/terminal/buffer/GraphemeWidth.kt` - grapheme display width rules
+- `src/main/kotlin/terminal/buffer/BufferRow.kt` - visible row plus wrap-continuation metadata
+- `src/main/kotlin/terminal/buffer/LogicalLine.kt` - temporary logical grapheme grouping for reflow-aware operations
 - `src/main/kotlin/terminal/buffer/ScreenLine.kt` - internal line abstraction used for grapheme-safe row operations
+- `src/main/kotlin/terminal/buffer/StyledGrapheme.kt` - grapheme plus attributes for reflow and editing
 - `src/main/kotlin/terminal/buffer/AnsiSnapshotRenderer.kt` - ANSI-styled CLI snapshot rendering for `show`
 - `src/main/kotlin/terminal/buffer/CellAttributes.kt` - foreground/background/style attributes
 - `src/main/kotlin/terminal/buffer/TerminalColor.kt` - 16-color terminal palette plus default

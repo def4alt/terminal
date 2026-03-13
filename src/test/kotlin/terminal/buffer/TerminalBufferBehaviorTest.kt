@@ -188,6 +188,30 @@ class TerminalBufferBehaviorTest {
             assertEquals("abXY", buffer.getScreenLine(0))
             assertEquals("cdef", buffer.getScreenLine(1))
         }
+
+        @Test
+        fun deleting_text_reflows_following_content_across_visual_rows() {
+            val buffer = buffer(height = 3)
+
+            buffer.writeText("abcdef")
+            buffer.setCursorPosition(column = 1, row = 0)
+            buffer.deleteCharacters()
+
+            assertEquals("acde", buffer.getScreenLine(0))
+            assertEquals("f   ", buffer.getScreenLine(1))
+        }
+
+        @Test
+        fun backspace_reflows_following_content_across_visual_rows() {
+            val buffer = buffer(height = 3)
+
+            buffer.writeText("abcdef")
+            buffer.setCursorPosition(column = 0, row = 1)
+            buffer.backspace()
+
+            assertEquals("abce", buffer.getScreenLine(0))
+            assertEquals("f   ", buffer.getScreenLine(1))
+        }
     }
 
     @Nested
@@ -234,6 +258,44 @@ class TerminalBufferBehaviorTest {
             buffer.resize(newWidth = 3, newHeight = 2)
 
             assertEquals(2, buffer.getCursorColumn())
+            assertEquals(1, buffer.getCursorRow())
+        }
+
+        @Test
+        fun growing_width_reflows_previously_wrapped_text_back_together() {
+            val buffer = buffer(height = 3)
+
+            buffer.writeText("abcdef")
+
+            assertEquals("abcd", buffer.getScreenLine(0))
+            assertEquals("ef  ", buffer.getScreenLine(1))
+
+            buffer.resize(newWidth = 6, newHeight = 3)
+
+            assertEquals("abcdef", buffer.getScreenLine(0))
+            assertEquals("      ", buffer.getScreenLine(1))
+        }
+
+        @Test
+        fun growing_width_reflows_without_splitting_wide_graphemes() {
+            val buffer = buffer(height = 3)
+
+            buffer.writeText("a界bc")
+            buffer.resize(newWidth = 6, newHeight = 3)
+
+            assertEquals("a界bc ", buffer.getScreenLine(0))
+        }
+
+        @Test
+        fun resize_keeps_cursor_attached_to_the_same_logical_content_after_reflow() {
+            val buffer = buffer(height = 3)
+
+            buffer.writeText("abcdef")
+            buffer.setCursorPosition(column = 2, row = 1)
+
+            buffer.resize(newWidth = 6, newHeight = 3)
+
+            assertEquals(0, buffer.getCursorColumn())
             assertEquals(1, buffer.getCursorRow())
         }
     }
