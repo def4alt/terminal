@@ -204,7 +204,7 @@ class TerminalBuffer(
         normalizeCursor()
 
         val cursor = currentLogicalCursorPosition()
-        val logicalLines = screenLogicalLines()
+        val logicalLines = rowsToLogicalLines(screen, preserveBlankCells = false)
         val line = logicalLines.getOrNull(cursor.logicalLineIndex) ?: return
         val deleteIndex = graphemeIndexAtOrAfterDisplayColumn(line, cursor.displayColumn) ?: return
 
@@ -218,7 +218,7 @@ class TerminalBuffer(
         normalizeCursor()
 
         val cursor = currentLogicalCursorPosition()
-        val logicalLines = screenLogicalLines()
+        val logicalLines = rowsToLogicalLines(screen, preserveBlankCells = false)
         val line = logicalLines.getOrNull(cursor.logicalLineIndex) ?: return
         val deleteIndex = graphemeIndexBeforeDisplayColumn(line, cursor.displayColumn) ?: return
 
@@ -264,19 +264,6 @@ class TerminalBuffer(
 
     private fun displayColumnForGraphemeIndex(line: LogicalLine, graphemeIndex: Int): Int {
         return line.graphemes().take(graphemeIndex).sumOf { it.displayWidth }
-    }
-
-    private fun screenLogicalLines(): MutableList<LogicalLine> {
-        val logicalLines = mutableListOf<LogicalLine>()
-
-        for (row in screen) {
-            if (!row.wrapsFromPrevious || logicalLines.isEmpty()) {
-                logicalLines += LogicalLine()
-            }
-            logicalLines.last().append(row.line.styledGraphemes())
-        }
-
-        return logicalLines
     }
 
     private fun rebuildScreenFromLogicalLines(logicalLines: List<LogicalLine>) {
@@ -415,14 +402,7 @@ class TerminalBuffer(
     }
 
     private fun resizeWidth(lines: MutableList<BufferRow>, newWidth: Int, preserveRowCount: Int? = null) {
-        val logicalLines = mutableListOf<LogicalLine>()
-
-        for (row in lines) {
-            if (!row.wrapsFromPrevious || logicalLines.isEmpty()) {
-                logicalLines += LogicalLine()
-            }
-            logicalLines.last().append(row.line.styledGraphemes())
-        }
+        val logicalLines = rowsToLogicalLines(lines, preserveBlankCells = false)
 
         val resizedRows = ViewportProjector.projectAllRows(
             logicalLines = logicalLines,
@@ -532,7 +512,7 @@ class TerminalBuffer(
 
     private fun screenProjection(): ViewportProjection {
         return ViewportProjector.project(
-            logicalLines = rowsToLogicalLines(screen),
+            logicalLines = rowsToLogicalLines(screen, preserveBlankCells = true),
             width = width,
             height = height,
             maxScrollbackLines = 0,
@@ -541,7 +521,7 @@ class TerminalBuffer(
 
     private fun historyProjectionRows(): List<VisualRow> {
         val projection = ViewportProjector.project(
-            logicalLines = rowsToLogicalLines(historyRows()),
+            logicalLines = rowsToLogicalLines(historyRows(), preserveBlankCells = true),
             width = width,
             height = height,
             maxScrollbackLines = maxScrollbackLines,
@@ -549,14 +529,15 @@ class TerminalBuffer(
         return projection.scrollbackRows + projection.visibleRows
     }
 
-    private fun rowsToLogicalLines(rows: List<BufferRow>): MutableList<LogicalLine> {
+    private fun rowsToLogicalLines(rows: List<BufferRow>, preserveBlankCells: Boolean = false): MutableList<LogicalLine> {
         val logicalLines = mutableListOf<LogicalLine>()
 
         for (row in rows) {
             if (!row.wrapsFromPrevious || logicalLines.isEmpty()) {
                 logicalLines += LogicalLine()
             }
-            logicalLines.last().append(row.line.styledUnitsPreservingBlanks())
+            val units = if (preserveBlankCells) row.line.styledUnitsPreservingBlanks() else row.line.styledGraphemes()
+            logicalLines.last().append(units)
         }
 
         return logicalLines
