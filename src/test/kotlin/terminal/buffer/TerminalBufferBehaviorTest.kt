@@ -236,6 +236,31 @@ class TerminalBufferBehaviorTest {
             assertEquals(2, buffer.getCursorColumn())
             assertEquals(1, buffer.getCursorRow())
         }
+
+        @Test
+        fun growing_width_reflows_previously_wrapped_text_back_together() {
+            val buffer = buffer(height = 3)
+
+            buffer.writeText("abcdef")
+
+            assertEquals("abcd", buffer.getScreenLine(0))
+            assertEquals("ef  ", buffer.getScreenLine(1))
+
+            buffer.resize(newWidth = 6, newHeight = 3)
+
+            assertEquals("abcdef", buffer.getScreenLine(0))
+            assertEquals("      ", buffer.getScreenLine(1))
+        }
+
+        @Test
+        fun growing_width_reflows_without_splitting_wide_graphemes() {
+            val buffer = buffer(height = 3)
+
+            buffer.writeText("a界bc")
+            buffer.resize(newWidth = 6, newHeight = 3)
+
+            assertEquals("a界bc ", buffer.getScreenLine(0))
+        }
     }
 
     @Nested
