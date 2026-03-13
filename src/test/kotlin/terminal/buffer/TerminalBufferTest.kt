@@ -117,6 +117,23 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun logical_line_wrap_produces_visual_rows_without_splitting_wide_graphemes() {
+        val line = LogicalLine()
+        line.append(
+            listOf(
+                StyledGrapheme("a", 1, CellAttributes()),
+                StyledGrapheme("界", 2, CellAttributes()),
+                StyledGrapheme("b", 1, CellAttributes()),
+            ),
+        )
+
+        val rows = projectLogicalLine(line = line, logicalLineIndex = 0, width = 3)
+
+        assertEquals("a界", rows[0].screenLine.toDisplayText())
+        assertEquals("b  ", rows[1].screenLine.toDisplayText())
+    }
+
+    @Test
     fun set_current_attributes_changes_attributes_for_future_edits() {
         val buffer = buffer()
         val attributes = attributes(TerminalColor.GREEN, TerminalColor.BLACK, TextStyle.BOLD, TextStyle.UNDERLINE)
