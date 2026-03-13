@@ -24,11 +24,6 @@ class TerminalBuffer(
     private var cursorColumn = 0
     private var cursorRow = 0
 
-    private data class LogicalCursorPosition(
-        val logicalLineIndex: Int,
-        val displayColumn: Int,
-    )
-
     init {
         syncLogicalStateFromRows()
     }
@@ -117,7 +112,7 @@ class TerminalBuffer(
         require(newWidth > 0) { "newWidth must be positive" }
         require(newHeight > 0) { "newHeight must be positive" }
 
-        val logicalCursor = currentLogicalCursorPosition()
+        val logicalCursor = currentLogicalCursor()
 
         if (newWidth != width) {
             width = newWidth
@@ -248,9 +243,9 @@ class TerminalBuffer(
     private fun deleteOneCharacter() {
         normalizeCursor()
 
-        val cursor = currentLogicalCursorPosition()
+        val cursor = currentLogicalCursor()
         val logicalLines = editLogicalScreenLines()
-        val line = logicalLines.getOrNull(cursor.logicalLineIndex) ?: return
+        val line = logicalLines.getOrNull(cursor.lineIndex) ?: return
         val deleteIndex = graphemeIndexAtOrAfterDisplayColumn(line, cursor.displayColumn) ?: return
 
         line.delete(deleteIndex, 1)
@@ -262,14 +257,14 @@ class TerminalBuffer(
     private fun backspaceOneCharacter() {
         normalizeCursor()
 
-        val cursor = currentLogicalCursorPosition()
+        val cursor = currentLogicalCursor()
         val logicalLines = editLogicalScreenLines()
-        val line = logicalLines.getOrNull(cursor.logicalLineIndex) ?: return
+        val line = logicalLines.getOrNull(cursor.lineIndex) ?: return
         val deleteIndex = graphemeIndexBeforeDisplayColumn(line, cursor.displayColumn) ?: return
 
         line.delete(deleteIndex, 1)
         rebuildScreenFromLogicalLines(logicalLines)
-        restoreLogicalCursor(cursor.copy(displayColumn = displayColumnForGraphemeIndex(line, deleteIndex)))
+        restoreLogicalCursor(cursor.withDisplayColumn(displayColumnForGraphemeIndex(line, deleteIndex)))
         normalizeCursorPosition()
     }
 
@@ -491,7 +486,7 @@ class TerminalBuffer(
         }
     }
 
-    private fun currentLogicalCursorPosition(): LogicalCursorPosition {
+    private fun currentLogicalCursor(): LogicalCursor {
         var logicalLineIndex = -1
         var row = 0
 
@@ -509,10 +504,10 @@ class TerminalBuffer(
             previousRow -= 1
         }
 
-        return LogicalCursorPosition(logicalLineIndex = logicalLineIndex.coerceAtLeast(0), displayColumn = displayColumn)
+        return LogicalCursor(lineIndex = logicalLineIndex.coerceAtLeast(0), displayColumn = displayColumn)
     }
 
-    private fun restoreLogicalCursor(position: LogicalCursorPosition) {
+    private fun restoreLogicalCursor(position: LogicalCursor) {
         var currentLogicalLineIndex = -1
         var row = 0
 
@@ -521,7 +516,7 @@ class TerminalBuffer(
                 currentLogicalLineIndex += 1
             }
 
-            if (currentLogicalLineIndex == position.logicalLineIndex) {
+            if (currentLogicalLineIndex == position.lineIndex) {
                 var remaining = position.displayColumn
                 var currentRow = row
 
