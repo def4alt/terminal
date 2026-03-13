@@ -199,7 +199,14 @@ class TerminalBufferCliBehaviorTest {
     @Nested
     inner class ResizeAndResetCommands {
         @Test
-        fun resize_changes_the_visible_dimensions_while_preserving_content_under_the_current_policy() {
+        fun resize_reflows_previously_wrapped_content_when_width_changes() {
+            val rendered = runCommands("write abcdef", "resize 6 4", "screen")
+
+            assertTrue(rendered.contains("abcdef\n      \n      \n      \n"))
+        }
+
+        @Test
+        fun resize_preserves_visible_content_for_wide_graphemes_after_reflow() {
             val rendered = runCommands("write a界", "resize 4 4", "screen")
 
             assertTrue(rendered.contains("a界 \n    \n    \n    \n"))
