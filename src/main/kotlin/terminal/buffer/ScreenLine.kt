@@ -3,12 +3,6 @@ package terminal.buffer
 internal class ScreenLine private constructor(
     private val cells: MutableList<Cell>,
 ) {
-    data class StyledGrapheme(
-        val column: Int,
-        val kind: CellKind.GraphemeStart,
-        val attributes: CellAttributes,
-    )
-
     fun cellAt(column: Int): Cell = cells[column]
 
     fun replace(column: Int, cell: Cell) {
@@ -25,36 +19,6 @@ internal class ScreenLine private constructor(
                 is CellKind.GraphemeStart -> append(kind.text)
             }
         }
-    }
-
-    fun resizeWidth(newWidth: Int): ScreenLine {
-        require(newWidth > 0) { "newWidth must be positive" }
-
-        val resized = blank(newWidth)
-        var column = 0
-
-        for (cell in cells) {
-            val kind = cell.kind as? CellKind.GraphemeStart ?: continue
-            if (column + kind.displayWidth > newWidth) {
-                break
-            }
-
-            resized.writeGrapheme(column, kind, cell.attributes)
-            column += kind.displayWidth
-        }
-
-        return resized
-    }
-
-    fun graphemes(): List<StyledGrapheme> {
-        val graphemes = mutableListOf<StyledGrapheme>()
-
-        for ((column, cell) in cells.withIndex()) {
-            val kind = cell.kind as? CellKind.GraphemeStart ?: continue
-            graphemes += StyledGrapheme(column = column, kind = kind, attributes = cell.attributes)
-        }
-
-        return graphemes
     }
 
     fun toLogicalLine(keepTrailingBlanks: Boolean): terminal.buffer.LogicalLine {
@@ -80,11 +44,12 @@ internal class ScreenLine private constructor(
     }
 
     fun styledGraphemes(): List<terminal.buffer.StyledGrapheme> {
-        return graphemes().map { grapheme ->
+        return cells.mapNotNull { cell ->
+            val kind = cell.kind as? CellKind.GraphemeStart ?: return@mapNotNull null
             terminal.buffer.StyledGrapheme(
-                text = grapheme.kind.text,
-                displayWidth = grapheme.kind.displayWidth,
-                attributes = grapheme.attributes,
+                text = kind.text,
+                displayWidth = kind.displayWidth,
+                attributes = cell.attributes,
             )
         }
     }

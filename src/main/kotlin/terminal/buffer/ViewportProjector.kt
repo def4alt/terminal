@@ -35,9 +35,7 @@ internal object ViewportProjector {
     private fun blankVisualRow(width: Int, logicalLineIndex: Int): VisualRow {
         return VisualRow(
             logicalLineIndex = logicalLineIndex,
-            startGraphemeIndex = 0,
             startDisplayColumn = 0,
-            graphemeCount = 0,
             displayWidth = 0,
             screenLine = ScreenLine.blank(width),
         )
@@ -56,9 +54,7 @@ internal fun projectLogicalLine(
         return listOf(
             VisualRow(
                 logicalLineIndex = logicalLineIndex,
-                startGraphemeIndex = 0,
                 startDisplayColumn = 0,
-                graphemeCount = 0,
                 displayWidth = 0,
                 screenLine = ScreenLine.blank(width),
             ),
@@ -93,9 +89,7 @@ internal fun projectLogicalLine(
 
         rows += VisualRow(
             logicalLineIndex = logicalLineIndex,
-            startGraphemeIndex = rowStart,
             startDisplayColumn = rowStartDisplayColumn,
-            graphemeCount = index - rowStart,
             displayWidth = displayWidth,
             screenLine = row,
         )
