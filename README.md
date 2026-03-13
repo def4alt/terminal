@@ -43,6 +43,7 @@ flowchart TD
 - Editing also supports `resize(newWidth, newHeight)` with a deterministic no-reflow policy.
 - Content access supports cells, characters, attributes, lines, visible screen content, and combined history+screen content.
 - The project includes an interactive CLI for manually exercising the buffer.
+- `show` can render the visible screen with ANSI colors and text styles.
 - The project includes behavior-focused unit tests with edge cases and boundary conditions.
 
 ## Solution overview
@@ -134,7 +135,7 @@ For behavior-doc tests, see `src/test/kotlin/terminal/buffer/TerminalBufferBehav
 - Cells are immutable values, which makes tests and behavior easier to reason about.
 - Wide characters are modeled explicitly as grapheme-start plus continuation cells rather than as raw chars in isolated cells.
 - The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
-- There is no ANSI parser, renderer, or escape-sequence handling in this project.
+- The CLI has a small ANSI renderer for `show`, but there is still no ANSI parser or escape-sequence interpreter.
 - Resize is grapheme-safe and predictable, but intentionally does not reflow previously wrapped content.
 - Full Unicode grapheme-boundary correctness across all edge cases is still a future improvement.
 
@@ -179,6 +180,7 @@ One important detail: string reconstruction APIs like `getScreenLine()` return v
 - `src/main/kotlin/terminal/buffer/GraphemeSegmenter.kt` - pragmatic grapheme segmentation
 - `src/main/kotlin/terminal/buffer/GraphemeWidth.kt` - grapheme display width rules
 - `src/main/kotlin/terminal/buffer/ScreenLine.kt` - internal line abstraction used for grapheme-safe row operations
+- `src/main/kotlin/terminal/buffer/AnsiSnapshotRenderer.kt` - ANSI-styled CLI snapshot rendering for `show`
 - `src/main/kotlin/terminal/buffer/CellAttributes.kt` - foreground/background/style attributes
 - `src/main/kotlin/terminal/buffer/TerminalColor.kt` - 16-color terminal palette plus default
 - `src/main/kotlin/terminal/buffer/TextStyle.kt` - supported text styles
