@@ -17,7 +17,6 @@ class TerminalBuffer(
         private set
 
     private val screen = MutableList(height) { blankRow() }
-    private val scrollback = mutableListOf<BufferRow>()
     private val logicalScreenLines = mutableListOf<LogicalLine>()
     private val logicalScrollbackLines = mutableListOf<LogicalLine>()
     private var currentAttributes = CellAttributes()
@@ -102,7 +101,6 @@ class TerminalBuffer(
     }
 
     fun clearScreenAndScrollback() {
-        scrollback.clear()
         logicalScrollbackLines.clear()
         currentAttributes = CellAttributes()
         clearScreen()
@@ -116,7 +114,6 @@ class TerminalBuffer(
 
         if (newWidth != width) {
             width = newWidth
-            rebuildScrollbackFromLogicalLines(logicalScrollbackLines)
             rebuildScreenFromLogicalLines(logicalScreenLines)
         }
 
@@ -230,7 +227,7 @@ class TerminalBuffer(
         is CellKind.GraphemeStart -> kind.text
     }
 
-    private fun historyRows(): List<BufferRow> = scrollback + screen
+    private fun historyRows(): List<BufferRow> = scrollbackRows() + screen
 
     private fun fillCell(character: Char?): Cell {
         if (character == null) {
@@ -439,51 +436,8 @@ class TerminalBuffer(
     }
 
     private fun moveLineToScrollback(line: BufferRow) {
-        scrollback += line
-        trimScrollback()
-    }
-
-    private fun resizeWidth(lines: MutableList<BufferRow>, newWidth: Int, preserveRowCount: Int? = null) {
-        val logicalLines = rowsToLogicalLines(lines, preserveBlankCells = false)
-
-        val resizedRows = ViewportProjector.projectAllRows(
-            logicalLines = logicalLines,
-            width = newWidth,
-        ).map { visualRow ->
-            BufferRow(
-                line = visualRow.screenLine,
-                wrapsFromPrevious = visualRow.startDisplayColumn > 0,
-            )
-        }
-
-        lines.clear()
-        val finalRows = when {
-            preserveRowCount == null -> resizedRows
-            resizedRows.size >= preserveRowCount -> resizedRows.take(preserveRowCount)
-            else -> resizedRows + MutableList(preserveRowCount - resizedRows.size) { BufferRow(ScreenLine.blank(newWidth)) }
-        }
-        lines.addAll(finalRows)
-    }
-
-    private fun rebuildScrollbackFromLogicalLines(logicalLines: List<LogicalLine>) {
-        val rows = ViewportProjector.projectAllRows(
-            logicalLines = logicalLines,
-            width = width,
-        ).map { visualRow ->
-            BufferRow(
-                line = visualRow.screenLine,
-                wrapsFromPrevious = visualRow.startDisplayColumn > 0,
-            )
-        }
-
-        scrollback.clear()
-        scrollback.addAll(rows.takeLast(maxScrollbackLines))
-    }
-
-    private fun trimScrollback() {
-        while (scrollback.size > maxScrollbackLines) {
-            scrollback.removeFirst()
-        }
+        logicalScrollbackLines.addAll(rowsToLogicalLines(listOf(line), preserveBlankCells = true))
+        trimLogicalScrollback()
     }
 
     private fun currentLogicalCursor(): LogicalCursor {
@@ -588,13 +542,29 @@ class TerminalBuffer(
 
     private fun syncLogicalStateFromRows() {
         syncLogicalScreenFromScreenRows()
-        logicalScrollbackLines.clear()
-        logicalScrollbackLines.addAll(rowsToLogicalLines(scrollback, preserveBlankCells = true))
     }
 
     private fun syncLogicalScreenFromScreenRows() {
         logicalScreenLines.clear()
         logicalScreenLines.addAll(rowsToLogicalLines(screen, preserveBlankCells = true))
+    }
+
+    private fun scrollbackRows(): List<BufferRow> {
+        return ViewportProjector.projectAllRows(
+            logicalLines = logicalScrollbackLines,
+            width = width,
+        ).map { visualRow ->
+            BufferRow(
+                line = visualRow.screenLine,
+                wrapsFromPrevious = visualRow.startDisplayColumn > 0,
+            )
+        }
+    }
+
+    private fun trimLogicalScrollback() {
+        while (logicalScrollbackLines.size > maxScrollbackLines) {
+            logicalScrollbackLines.removeFirst()
+        }
     }
 
     private fun editLogicalScreenLines(): MutableList<LogicalLine> {
