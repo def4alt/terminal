@@ -72,7 +72,7 @@ internal class ScreenLine private constructor(
 
         for (cell in cells) {
             when (val kind = cell.kind) {
-                CellKind.Empty -> units += terminal.buffer.StyledGrapheme(" ", 1, CellAttributes())
+                CellKind.Empty -> units += terminal.buffer.StyledGrapheme.blank()
                 CellKind.Continuation -> Unit
                 is CellKind.GraphemeStart -> units += terminal.buffer.StyledGrapheme(kind.text, kind.displayWidth, cell.attributes)
             }

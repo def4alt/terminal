@@ -163,6 +163,23 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun logical_line_projection_preserves_blank_cells_as_empty_screen_cells() {
+        val line = LogicalLine()
+        line.append(
+            listOf(
+                StyledGrapheme.blank(),
+                StyledGrapheme("a", 1, CellAttributes()),
+            ),
+        )
+
+        val rows = projectLogicalLine(line = line, logicalLineIndex = 0, width = 2)
+
+        assertEquals(" a", rows[0].screenLine.toDisplayText())
+        assertEquals(CellKind.Empty, rows[0].screenLine.cellAt(0).kind)
+        assertEquals(CellKind.GraphemeStart("a", 1), rows[0].screenLine.cellAt(1).kind)
+    }
+
+    @Test
     fun set_current_attributes_changes_attributes_for_future_edits() {
         val buffer = buffer()
         val attributes = attributes(TerminalColor.GREEN, TerminalColor.BLACK, TextStyle.BOLD, TextStyle.UNDERLINE)

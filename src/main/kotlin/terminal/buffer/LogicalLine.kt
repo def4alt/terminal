@@ -35,7 +35,7 @@ internal class LogicalLine(
 
     fun displayWidth(): Int = graphemes.sumOf { it.displayWidth }
 
-    fun toDisplayText(): String = graphemes.joinToString(separator = "") { it.text }
+    fun toDisplayText(): String = graphemes.joinToString(separator = "") { if (it.isBlank()) " " else it.text }
 
     fun wrap(width: Int): List<ScreenLine> {
         require(width > 0) { "width must be positive" }

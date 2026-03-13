@@ -73,11 +73,13 @@ internal fun projectLogicalLine(
                 break
             }
 
-            row.writeGrapheme(
-                column = displayWidth,
-                kind = CellKind.GraphemeStart(grapheme.text, grapheme.displayWidth),
-                attributes = grapheme.attributes,
-            )
+            if (!grapheme.isBlank()) {
+                row.writeGrapheme(
+                    column = displayWidth,
+                    kind = CellKind.GraphemeStart(grapheme.text, grapheme.displayWidth),
+                    attributes = grapheme.attributes,
+                )
+            }
             displayWidth += grapheme.displayWidth
             index += 1
         }
