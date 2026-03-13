@@ -11,8 +11,21 @@ fun renderHelp(): String = buildString {
     appendLine("Available commands:")
     appendLine("help")
     appendLine("show")
+    appendLine("screen")
+    appendLine("history")
+    appendLine("cursor")
+    appendLine("set-cursor <column> <row>")
+    appendLine("move <up|down|left|right> <count>")
+    appendLine("attrs")
+    appendLine("set-attrs <fg> <bg> [styles...]")
     appendLine("write <text>")
     appendLine("insert <text>")
+    appendLine("fill <char|empty>")
+    appendLine("append-line")
+    appendLine("clear-screen")
+    appendLine("clear-all")
+    appendLine("resize <width> <height>")
+    appendLine("reset")
     appendLine("quit")
 }
 
@@ -71,22 +84,41 @@ class TerminalBufferCli(
 
             trimmed.startsWith("set-cursor ") -> {
                 val parts = trimmed.split(" ")
-                buffer.setCursorPosition(parts[1].toInt(), parts[2].toInt())
-                true
+                if (parts.size != 3) {
+                    invalidUsage()
+                } else {
+                    val column = parts[1].toIntOrNull()
+                    val row = parts[2].toIntOrNull()
+                    if (column == null || row == null) {
+                        invalidUsage()
+                    } else {
+                        buffer.setCursorPosition(column, row)
+                        true
+                    }
+                }
             }
 
             trimmed == "set-cursor" -> invalidUsage()
 
             trimmed.startsWith("move ") -> {
                 val parts = trimmed.split(" ")
-                val count = parts[2].toInt()
-                when (parts[1]) {
-                    "up" -> buffer.moveCursorUp(count)
-                    "down" -> buffer.moveCursorDown(count)
-                    "left" -> buffer.moveCursorLeft(count)
-                    "right" -> buffer.moveCursorRight(count)
+                if (parts.size != 3) {
+                    invalidUsage()
+                } else {
+                    val count = parts[2].toIntOrNull()
+                    if (count == null) {
+                        invalidUsage()
+                    } else {
+                        when (parts[1]) {
+                            "up" -> buffer.moveCursorUp(count)
+                            "down" -> buffer.moveCursorDown(count)
+                            "left" -> buffer.moveCursorLeft(count)
+                            "right" -> buffer.moveCursorRight(count)
+                            else -> return invalidUsage()
+                        }
+                        true
+                    }
                 }
-                true
             }
 
             trimmed == "move" -> invalidUsage()
@@ -132,6 +164,22 @@ class TerminalBufferCli(
                 val value = trimmed.substringAfter("fill ")
                 buffer.fillLine(if (value == "empty") null else value.first())
                 true
+            }
+
+            trimmed.startsWith("resize ") -> {
+                val parts = trimmed.split(" ")
+                if (parts.size != 3) {
+                    invalidUsage()
+                } else {
+                    val newWidth = parts[1].toIntOrNull()
+                    val newHeight = parts[2].toIntOrNull()
+                    if (newWidth == null || newHeight == null) {
+                        invalidUsage()
+                    } else {
+                        buffer.resize(newWidth = newWidth, newHeight = newHeight)
+                        true
+                    }
+                }
             }
 
             trimmed == "append-line" -> {

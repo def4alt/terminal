@@ -13,6 +13,7 @@ class TerminalBufferCliTest {
 
         assertTrue(help.contains("write <text>"))
         assertTrue(help.contains("insert <text>"))
+        assertTrue(help.contains("resize <width> <height>"))
         assertTrue(help.contains("show"))
         assertTrue(help.contains("quit"))
     }
@@ -169,6 +170,39 @@ class TerminalBufferCliTest {
     }
 
     @Test
+    fun execute_resize_updates_screen_dimensions() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("resize 4 2")
+        cli.execute("screen")
+
+        assertTrue(output.toString().contains("    \n    \n"))
+    }
+
+    @Test
+    fun execute_resize_preserves_visible_content_with_current_policy() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("write a界")
+        cli.execute("resize 4 4")
+        cli.execute("screen")
+
+        assertTrue(output.toString().contains("a界 \n    \n    \n    \n"))
+    }
+
+    @Test
+    fun execute_resize_rejects_invalid_arguments() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        cli.execute("resize nope 2")
+
+        assertTrue(output.toString().contains("Invalid command usage"))
+    }
+
+    @Test
     fun execute_fill_with_character_updates_current_row() {
         val output = StringBuilder()
         val cli = TerminalBufferCli(output = output)
@@ -280,6 +314,50 @@ class TerminalBufferCliTest {
 
         cli.execute("set-cursor")
 
+        assertTrue(output.toString().contains("Invalid command usage"))
+    }
+
+    @Test
+    fun execute_move_without_count_writes_helpful_error() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        val shouldContinue = cli.execute("move down")
+
+        assertTrue(shouldContinue)
+        assertTrue(output.toString().contains("Invalid command usage"))
+    }
+
+    @Test
+    fun execute_move_with_invalid_count_writes_helpful_error() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        val shouldContinue = cli.execute("move down nope")
+
+        assertTrue(shouldContinue)
+        assertTrue(output.toString().contains("Invalid command usage"))
+    }
+
+    @Test
+    fun execute_set_cursor_without_both_coordinates_writes_helpful_error() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        val shouldContinue = cli.execute("set-cursor 2")
+
+        assertTrue(shouldContinue)
+        assertTrue(output.toString().contains("Invalid command usage"))
+    }
+
+    @Test
+    fun execute_set_cursor_with_invalid_coordinates_writes_helpful_error() {
+        val output = StringBuilder()
+        val cli = TerminalBufferCli(output = output)
+
+        val shouldContinue = cli.execute("set-cursor nope 1")
+
+        assertTrue(shouldContinue)
         assertTrue(output.toString().contains("Invalid command usage"))
     }
 

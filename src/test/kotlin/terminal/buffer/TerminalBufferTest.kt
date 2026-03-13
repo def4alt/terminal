@@ -345,6 +345,130 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun resize_width_grow_preserves_existing_graphemes_and_pads_right_side() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("a界")
+        buffer.resize(newWidth = 6, newHeight = 2)
+
+        assertEquals("a界   ", buffer.getScreenLine(0))
+    }
+
+    @Test
+    fun resize_width_grow_preserves_attributes_of_surviving_graphemes() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+        val attributes = CellAttributes(
+            foreground = TerminalColor.GREEN,
+            background = TerminalColor.BLACK,
+            styles = setOf(TextStyle.BOLD),
+        )
+
+        buffer.setCurrentAttributes(attributes)
+        buffer.writeText("界")
+        buffer.resize(newWidth = 6, newHeight = 2)
+
+        assertEquals(attributes, buffer.getScreenCell(column = 0, row = 0).attributes)
+        assertEquals(attributes, buffer.getScreenCell(column = 1, row = 0).attributes)
+    }
+
+    @Test
+    fun resize_width_shrink_keeps_only_whole_graphemes_that_fit() {
+        val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("a界b")
+        buffer.resize(newWidth = 3, newHeight = 2)
+
+        assertEquals("a界", buffer.getScreenLine(0))
+    }
+
+    @Test
+    fun resize_width_shrink_drops_wide_grapheme_that_no_longer_fits() {
+        val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("ab界")
+        buffer.resize(newWidth = 3, newHeight = 2)
+
+        assertEquals("ab ", buffer.getScreenLine(0))
+    }
+
+    @Test
+    fun resize_width_shrink_never_leaves_continuation_cells_visible() {
+        val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("a界b")
+        buffer.resize(newWidth = 2, newHeight = 2)
+
+        assertEquals("a ", buffer.getScreenLine(0))
+        assertEquals(CellKind.Empty, buffer.getScreenCell(column = 1, row = 0).kind)
+    }
+
+    @Test
+    fun resize_height_grow_appends_blank_rows_at_bottom() {
+        val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("abcd")
+        buffer.resize(newWidth = 4, newHeight = 4)
+
+        assertEquals("abcd", buffer.getScreenLine(0))
+        assertEquals("    ", buffer.getScreenLine(2))
+        assertEquals("    ", buffer.getScreenLine(3))
+    }
+
+    @Test
+    fun resize_height_shrink_moves_trimmed_top_rows_into_scrollback() {
+        val buffer = TerminalBuffer(width = 4, height = 3, maxScrollbackLines = 5)
+
+        buffer.fillLine('a')
+        buffer.setCursorPosition(column = 0, row = 1)
+        buffer.fillLine('b')
+        buffer.setCursorPosition(column = 0, row = 2)
+        buffer.fillLine('c')
+        buffer.resize(newWidth = 4, newHeight = 2)
+
+        assertEquals("aaaa\nbbbb\ncccc", buffer.getHistoryContent())
+    }
+
+    @Test
+    fun resize_height_shrink_respects_scrollback_capacity() {
+        val buffer = TerminalBuffer(width = 4, height = 3, maxScrollbackLines = 1)
+
+        buffer.fillLine('a')
+        buffer.setCursorPosition(column = 0, row = 1)
+        buffer.fillLine('b')
+        buffer.setCursorPosition(column = 0, row = 2)
+        buffer.fillLine('c')
+        buffer.resize(newWidth = 4, newHeight = 2)
+
+        assertEquals("aaaa\nbbbb\ncccc", buffer.getHistoryContent())
+
+        buffer.insertEmptyLineAtBottom()
+
+        assertEquals("bbbb\ncccc\n    ", buffer.getHistoryContent())
+    }
+
+    @Test
+    fun resize_clamps_cursor_into_new_bounds() {
+        val buffer = TerminalBuffer(width = 6, height = 3, maxScrollbackLines = 5)
+
+        buffer.setCursorPosition(column = 5, row = 2)
+        buffer.resize(newWidth = 3, newHeight = 2)
+
+        assertEquals(2, buffer.getCursorColumn())
+        assertEquals(1, buffer.getCursorRow())
+    }
+
+    @Test
+    fun resize_normalizes_cursor_off_continuation_cell() {
+        val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
+
+        buffer.writeText("a界b")
+        buffer.setCursorPosition(column = 2, row = 0)
+        buffer.resize(newWidth = 3, newHeight = 2)
+
+        assertEquals(1, buffer.getCursorColumn())
+    }
+
+    @Test
     fun move_cursor_right_skips_continuation_cells_of_wide_graphemes() {
         val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
 
