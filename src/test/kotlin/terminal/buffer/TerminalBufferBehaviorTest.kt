@@ -188,6 +188,30 @@ class TerminalBufferBehaviorTest {
             assertEquals("abXY", buffer.getScreenLine(0))
             assertEquals("cdef", buffer.getScreenLine(1))
         }
+
+        @Test
+        fun deleting_text_reflows_following_content_across_visual_rows() {
+            val buffer = buffer(height = 3)
+
+            buffer.writeText("abcdef")
+            buffer.setCursorPosition(column = 1, row = 0)
+            buffer.deleteCharacters()
+
+            assertEquals("acde", buffer.getScreenLine(0))
+            assertEquals("f   ", buffer.getScreenLine(1))
+        }
+
+        @Test
+        fun backspace_reflows_following_content_across_visual_rows() {
+            val buffer = buffer(height = 3)
+
+            buffer.writeText("abcdef")
+            buffer.setCursorPosition(column = 0, row = 1)
+            buffer.backspace()
+
+            assertEquals("abce", buffer.getScreenLine(0))
+            assertEquals("f   ", buffer.getScreenLine(1))
+        }
     }
 
     @Nested

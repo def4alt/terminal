@@ -203,61 +203,99 @@ class TerminalBuffer(
     private fun deleteOneCharacter() {
         normalizeCursor()
 
-        val line = screen[cursorRow].line
-        val graphemes = line.graphemes()
-        val deleteIndex = graphemes.indexOfFirst { it.column >= cursorColumn }
-        if (deleteIndex == -1) {
-            return
-        }
+        val cursor = currentLogicalCursorPosition()
+        val logicalLines = screenLogicalLines()
+        val line = logicalLines.getOrNull(cursor.logicalLineIndex) ?: return
+        val deleteIndex = graphemeIndexAtOrAfterDisplayColumn(line, cursor.displayColumn) ?: return
 
-        val deleted = graphemes[deleteIndex]
-        val rewritten = ScreenLine.blank(width)
-
-        for ((index, grapheme) in graphemes.withIndex()) {
-            if (index == deleteIndex) {
-                continue
-            }
-
-            val targetColumn = if (grapheme.column < deleted.column) {
-                grapheme.column
-            } else {
-                grapheme.column - deleted.kind.displayWidth
-            }
-
-            if (targetColumn < 0 || targetColumn + grapheme.kind.displayWidth > width) {
-                continue
-            }
-
-            rewritten.writeGrapheme(targetColumn, grapheme.kind, grapheme.attributes)
-        }
-
-        screen[cursorRow] = BufferRow(rewritten, screen[cursorRow].wrapsFromPrevious)
+        line.delete(deleteIndex, 1)
+        rebuildScreenFromLogicalLines(logicalLines)
+        restoreLogicalCursor(cursor)
         normalizeCursorPosition()
     }
 
     private fun backspaceOneCharacter() {
         normalizeCursor()
-        if (cursorColumn == 0) {
-            if (cursorRow == 0) {
-                return
-            }
 
-            moveCursorToLastGraphemeOfPreviousRow() ?: return
-            deleteOneCharacter()
-            return
-        }
+        val cursor = currentLogicalCursorPosition()
+        val logicalLines = screenLogicalLines()
+        val line = logicalLines.getOrNull(cursor.logicalLineIndex) ?: return
+        val deleteIndex = graphemeIndexBeforeDisplayColumn(line, cursor.displayColumn) ?: return
 
-        moveCursorLeft()
-        deleteOneCharacter()
+        line.delete(deleteIndex, 1)
+        rebuildScreenFromLogicalLines(logicalLines)
+        restoreLogicalCursor(cursor.copy(displayColumn = displayColumnForGraphemeIndex(line, deleteIndex)))
+        normalizeCursorPosition()
     }
 
-    private fun moveCursorToLastGraphemeOfPreviousRow(): Unit? {
-        val previousRow = cursorRow - 1
-        val previousGrapheme = screen[previousRow].line.graphemes().lastOrNull() ?: return null
+    private fun graphemeIndexAtOrAfterDisplayColumn(line: LogicalLine, displayColumn: Int): Int? {
+        var column = 0
 
-        cursorRow = previousRow
-        cursorColumn = previousGrapheme.column
-        return Unit
+        for ((index, grapheme) in line.graphemes().withIndex()) {
+            if (column >= displayColumn) {
+                return index
+            }
+
+            column += grapheme.displayWidth
+            if (column > displayColumn) {
+                return index
+            }
+        }
+
+        return null
+    }
+
+    private fun graphemeIndexBeforeDisplayColumn(line: LogicalLine, displayColumn: Int): Int? {
+        if (displayColumn == 0) {
+            return null
+        }
+
+        var column = 0
+        for ((index, grapheme) in line.graphemes().withIndex()) {
+            val nextColumn = column + grapheme.displayWidth
+            if (nextColumn >= displayColumn) {
+                return index
+            }
+            column = nextColumn
+        }
+
+        return line.graphemeCount().takeIf { it > 0 }?.minus(1)
+    }
+
+    private fun displayColumnForGraphemeIndex(line: LogicalLine, graphemeIndex: Int): Int {
+        return line.graphemes().take(graphemeIndex).sumOf { it.displayWidth }
+    }
+
+    private fun screenLogicalLines(): MutableList<LogicalLine> {
+        val logicalLines = mutableListOf<LogicalLine>()
+
+        for (row in screen) {
+            if (!row.wrapsFromPrevious || logicalLines.isEmpty()) {
+                logicalLines += LogicalLine()
+            }
+            logicalLines.last().append(row.line.styledGraphemes())
+        }
+
+        return logicalLines
+    }
+
+    private fun rebuildScreenFromLogicalLines(logicalLines: List<LogicalLine>) {
+        val rows = mutableListOf<BufferRow>()
+
+        for (logicalLine in logicalLines) {
+            val wrappedRows = logicalLine.wrap(width)
+            for ((index, row) in wrappedRows.withIndex()) {
+                rows += BufferRow(row, wrapsFromPrevious = index > 0)
+            }
+        }
+
+        val finalRows = when {
+            rows.size >= height -> rows.take(height)
+            else -> rows + MutableList(height - rows.size) { blankRow() }
+        }
+
+        screen.clear()
+        screen.addAll(finalRows)
     }
 
     private fun insertCellAt(row: Int, column: Int, cell: Cell) {
@@ -456,6 +494,12 @@ class TerminalBuffer(
                         if (hasContinuation) {
                             cursorRow = currentRow + 1
                             cursorColumn = 0
+                            return
+                        }
+
+                        if (rowWidth < width) {
+                            cursorRow = currentRow
+                            cursorColumn = rowWidth
                             return
                         }
 
