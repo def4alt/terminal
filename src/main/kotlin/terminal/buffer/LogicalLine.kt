@@ -33,6 +33,8 @@ internal class LogicalLine(
 
     fun graphemes(): List<StyledGrapheme> = graphemes.toList()
 
+    fun copyLine(): LogicalLine = LogicalLine(graphemes.toMutableList())
+
     fun displayWidth(): Int = graphemes.sumOf { it.displayWidth }
 
     fun toDisplayText(): String = graphemes.joinToString(separator = "") { if (it.isBlank()) " " else it.text }

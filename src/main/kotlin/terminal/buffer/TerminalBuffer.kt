@@ -18,6 +18,8 @@ class TerminalBuffer(
 
     private val screen = MutableList(height) { blankRow() }
     private val scrollback = mutableListOf<BufferRow>()
+    private val logicalScreenLines = mutableListOf<LogicalLine>()
+    private val logicalScrollbackLines = mutableListOf<LogicalLine>()
     private var currentAttributes = CellAttributes()
     private var cursorColumn = 0
     private var cursorRow = 0
@@ -26,6 +28,10 @@ class TerminalBuffer(
         val logicalLineIndex: Int,
         val displayColumn: Int,
     )
+
+    init {
+        syncLogicalStateFromRows()
+    }
 
     fun getCursorColumn(): Int = cursorColumn
 
@@ -41,10 +47,12 @@ class TerminalBuffer(
         for (grapheme in segmentGraphemes(text)) {
             writeGrapheme(grapheme)
         }
+        syncLogicalScreenFromScreenRows()
     }
 
     fun fillLine(character: Char?) {
         screen[cursorRow] = BufferRow(ScreenLine.filled(width, fillCell(character)))
+        syncLogicalScreenFromScreenRows()
     }
 
     fun insertText(text: String) {
@@ -55,6 +63,7 @@ class TerminalBuffer(
                 advanceCursorOneCell()
             }
         }
+        syncLogicalScreenFromScreenRows()
     }
 
     fun deleteCharacters(count: Int = 1) {
@@ -83,10 +92,12 @@ class TerminalBuffer(
         }
         cursorColumn = 0
         cursorRow = 0
+        syncLogicalScreenFromScreenRows()
     }
 
     fun clearScreenAndScrollback() {
         scrollback.clear()
+        logicalScrollbackLines.clear()
         currentAttributes = CellAttributes()
         clearScreen()
     }
@@ -101,6 +112,7 @@ class TerminalBuffer(
             resizeWidth(scrollback, newWidth)
             resizeWidth(screen, newWidth, preserveRowCount = height)
             width = newWidth
+            syncLogicalStateFromRows()
         }
 
         when {
@@ -114,6 +126,7 @@ class TerminalBuffer(
         }
 
         height = newHeight
+        syncLogicalStateFromRows()
         restoreLogicalCursor(logicalCursor)
         normalizeCursorPosition()
     }
@@ -284,6 +297,7 @@ class TerminalBuffer(
 
         screen.clear()
         screen.addAll(finalRows)
+        syncLogicalScreenFromScreenRows()
     }
 
     private fun insertCellAt(row: Int, column: Int, cell: Cell) {
@@ -394,6 +408,7 @@ class TerminalBuffer(
         moveLineToScrollback(screen.removeFirst())
         screen += BufferRow(blankLine(), wrapsFromPrevious = wrappedContinuation)
         cursorRow = height - 1
+        syncLogicalStateFromRows()
     }
 
     private fun moveLineToScrollback(line: BufferRow) {
@@ -512,7 +527,7 @@ class TerminalBuffer(
 
     private fun screenProjection(): ViewportProjection {
         return ViewportProjector.project(
-            logicalLines = rowsToLogicalLines(screen, preserveBlankCells = true),
+            logicalLines = logicalScreenLines,
             width = width,
             height = height,
             maxScrollbackLines = 0,
@@ -521,12 +536,23 @@ class TerminalBuffer(
 
     private fun historyProjectionRows(): List<VisualRow> {
         val projection = ViewportProjector.project(
-            logicalLines = rowsToLogicalLines(historyRows(), preserveBlankCells = true),
+            logicalLines = logicalScrollbackLines + logicalScreenLines,
             width = width,
             height = height,
             maxScrollbackLines = maxScrollbackLines,
         )
         return projection.scrollbackRows + projection.visibleRows
+    }
+
+    private fun syncLogicalStateFromRows() {
+        syncLogicalScreenFromScreenRows()
+        logicalScrollbackLines.clear()
+        logicalScrollbackLines.addAll(rowsToLogicalLines(scrollback, preserveBlankCells = true))
+    }
+
+    private fun syncLogicalScreenFromScreenRows() {
+        logicalScreenLines.clear()
+        logicalScreenLines.addAll(rowsToLogicalLines(screen, preserveBlankCells = true))
     }
 
     private fun rowsToLogicalLines(rows: List<BufferRow>, preserveBlankCells: Boolean = false): MutableList<LogicalLine> {
