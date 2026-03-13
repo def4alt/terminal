@@ -56,7 +56,7 @@ class TerminalBufferCliTest {
     fun render_snapshot_displays_emoji_clusters_without_fake_internal_spacing() {
         val buffer = TerminalBuffer(width = 8, height = 2, maxScrollbackLines = 5)
 
-        buffer.writeText("a👍🏻b")
+        buffer.write("a👍🏻b")
 
         val snapshot = renderSnapshot(buffer)
 
@@ -75,7 +75,7 @@ class TerminalBufferCliTest {
                 styles = setOf(TextStyle.BOLD, TextStyle.UNDERLINE),
             ),
         )
-        buffer.writeText("A")
+        buffer.write("A")
 
         val snapshot = renderSnapshot(buffer)
 
@@ -87,7 +87,7 @@ class TerminalBufferCliTest {
         val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
 
         buffer.setCurrentAttributes(CellAttributes(foreground = TerminalColor.GREEN, styles = setOf(TextStyle.BOLD)))
-        buffer.writeText("A")
+        buffer.write("A")
 
         val snapshot = renderSnapshot(buffer)
 
@@ -100,7 +100,7 @@ class TerminalBufferCliTest {
         val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
 
         buffer.setCurrentAttributes(CellAttributes(foreground = TerminalColor.RED, styles = setOf(TextStyle.BOLD)))
-        buffer.writeText("AB")
+        buffer.write("AB")
 
         val snapshot = renderSnapshot(buffer)
         val styledSegment = snapshot.substringAfter("Screen:\n").substringBefore("\nHistory:")
@@ -113,7 +113,7 @@ class TerminalBufferCliTest {
         val buffer = TerminalBuffer(width = 6, height = 2, maxScrollbackLines = 5)
 
         buffer.setCurrentAttributes(CellAttributes(foreground = TerminalColor.BRIGHT_CYAN, background = TerminalColor.BLUE))
-        buffer.writeText("界")
+        buffer.write("界")
 
         val snapshot = renderSnapshot(buffer)
 
@@ -138,7 +138,7 @@ class TerminalBufferCliTest {
         val buffer = TerminalBuffer(width = 4, height = 2, maxScrollbackLines = 5)
 
         buffer.setCurrentAttributes(CellAttributes(foreground = TerminalColor.RED, styles = setOf(TextStyle.BOLD)))
-        buffer.writeText("A")
+        buffer.write("A")
 
         val snapshot = renderSnapshot(buffer)
 

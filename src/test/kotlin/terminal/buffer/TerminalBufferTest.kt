@@ -18,8 +18,8 @@ class TerminalBufferTest {
     }
 
     private fun assertCursor(buffer: TerminalBuffer, column: Int, row: Int) {
-        assertEquals(column, buffer.getCursorColumn())
-        assertEquals(row, buffer.getCursorRow())
+        assertEquals(column, buffer.cursorColumn())
+        assertEquals(row, buffer.cursorRow())
     }
 
     @Test
@@ -37,11 +37,11 @@ class TerminalBufferTest {
         val buffer = buffer()
 
         assertCursor(buffer, column = 0, row = 0)
-        assertEquals("    ", buffer.getScreenLine(0))
-        assertEquals("    ", buffer.getScreenLine(1))
-        assertEquals("    ", buffer.getScreenLine(2))
-        assertEquals("    \n    \n    ", buffer.getScreenContent())
-        assertEquals("    \n    \n    ", buffer.getHistoryContent())
+        assertEquals("    ", buffer.screenLineAt(0))
+        assertEquals("    ", buffer.screenLineAt(1))
+        assertEquals("    ", buffer.screenLineAt(2))
+        assertEquals("    \n    \n    ", buffer.screenText())
+        assertEquals("    \n    \n    ", buffer.historyText())
     }
 
     @Test
@@ -105,7 +105,7 @@ class TerminalBufferTest {
     fun current_attributes_default_to_terminal_defaults() {
         val buffer = buffer()
 
-        assertEquals(CellAttributes(), buffer.getCurrentAttributes())
+        assertEquals(CellAttributes(), buffer.currentAttributes())
     }
 
     @Test
@@ -241,16 +241,16 @@ class TerminalBufferTest {
 
         buffer.setCurrentAttributes(attributes)
 
-        assertEquals(attributes, buffer.getCurrentAttributes())
+        assertEquals(attributes, buffer.currentAttributes())
     }
 
     @Test
     fun write_text_overwrites_cells_from_cursor_and_advances_cursor() {
         val buffer = buffer()
 
-        buffer.writeText("abc")
+        buffer.write("abc")
 
-        assertEquals("abc ", buffer.getScreenLine(0))
+        assertEquals("abc ", buffer.screenLineAt(0))
         assertCursor(buffer, column = 3, row = 0)
     }
 
@@ -260,10 +260,10 @@ class TerminalBufferTest {
         val attributes = attributes(TerminalColor.RED, TerminalColor.WHITE, TextStyle.ITALIC)
 
         buffer.setCurrentAttributes(attributes)
-        buffer.writeText("A")
+        buffer.write("A")
 
-        val writtenCell = buffer.getScreenCell(column = 0, row = 0)
-        val untouchedCell = buffer.getScreenCell(column = 1, row = 0)
+        val writtenCell = buffer.screenCellAt(column = 0, row = 0)
+        val untouchedCell = buffer.screenCellAt(column = 1, row = 0)
 
         assertEquals(CellKind.GraphemeStart("A", 1), writtenCell.kind)
         assertEquals(attributes, writtenCell.attributes)
@@ -276,10 +276,10 @@ class TerminalBufferTest {
         val buffer = buffer()
 
         buffer.setCursorPosition(column = 3, row = 0)
-        buffer.writeText("AB")
+        buffer.write("AB")
 
-        assertEquals("   A", buffer.getScreenLine(0))
-        assertEquals("B   ", buffer.getScreenLine(1))
+        assertEquals("   A", buffer.screenLineAt(0))
+        assertEquals("B   ", buffer.screenLineAt(1))
         assertCursor(buffer, column = 1, row = 1)
     }
 
@@ -287,11 +287,11 @@ class TerminalBufferTest {
     fun write_text_at_bottom_row_scrolls_content_into_scrollback_when_needed() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcdefghi")
+        buffer.write("abcdefghi")
 
-        assertEquals("efgh", buffer.getScreenLine(0))
-        assertEquals("i   ", buffer.getScreenLine(1))
-        assertEquals("abcd\nefgh\ni   ", buffer.getHistoryContent())
+        assertEquals("efgh", buffer.screenLineAt(0))
+        assertEquals("i   ", buffer.screenLineAt(1))
+        assertEquals("abcd\nefgh\ni   ", buffer.historyText())
         assertCursor(buffer, column = 1, row = 1)
     }
 
@@ -304,9 +304,9 @@ class TerminalBufferTest {
         buffer.setCurrentAttributes(attributes)
         buffer.fillLine('x')
 
-        assertEquals("xxxx", buffer.getScreenLine(1))
-        assertEquals(Cell(CellKind.GraphemeStart("x", 1), attributes), buffer.getScreenCell(column = 0, row = 1))
-        assertEquals(Cell(CellKind.GraphemeStart("x", 1), attributes), buffer.getScreenCell(column = 3, row = 1))
+        assertEquals("xxxx", buffer.screenLineAt(1))
+        assertEquals(Cell(CellKind.GraphemeStart("x", 1), attributes), buffer.screenCellAt(column = 0, row = 1))
+        assertEquals(Cell(CellKind.GraphemeStart("x", 1), attributes), buffer.screenCellAt(column = 3, row = 1))
     }
 
     @Test
@@ -314,73 +314,73 @@ class TerminalBufferTest {
         val buffer = buffer(height = 2)
 
         buffer.setCursorPosition(column = 0, row = 1)
-        buffer.writeText("test")
+        buffer.write("test")
         buffer.setCursorPosition(column = 0, row = 1)
         buffer.fillLine(null)
 
-        assertEquals("    ", buffer.getScreenLine(1))
-        assertEquals(Cell(), buffer.getScreenCell(column = 2, row = 1))
+        assertEquals("    ", buffer.screenLineAt(1))
+        assertEquals(Cell(), buffer.screenCellAt(column = 2, row = 1))
     }
 
     @Test
     fun insert_text_shifts_existing_cells_right_from_cursor_position() {
         val buffer = buffer(width = 5, height = 2)
 
-        buffer.writeText("abc")
+        buffer.write("abc")
         buffer.setCursorPosition(column = 1, row = 0)
-        buffer.insertText("Z")
+        buffer.insert("Z")
 
-        assertEquals("aZbc ", buffer.getScreenLine(0))
+        assertEquals("aZbc ", buffer.screenLineAt(0))
     }
 
     @Test
     fun insert_text_wraps_overflow_onto_following_visible_rows() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcd")
-        buffer.writeText("ef")
+        buffer.write("abcd")
+        buffer.write("ef")
         buffer.setCursorPosition(column = 2, row = 0)
-        buffer.insertText("XY")
+        buffer.insert("XY")
 
-        assertEquals("abXY", buffer.getScreenLine(0))
-        assertEquals("cdef", buffer.getScreenLine(1))
+        assertEquals("abXY", buffer.screenLineAt(0))
+        assertEquals("cdef", buffer.screenLineAt(1))
     }
 
     @Test
     fun insert_text_overflow_at_screen_bottom_pushes_top_rows_into_scrollback() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcd")
-        buffer.writeText("efgh")
+        buffer.write("abcd")
+        buffer.write("efgh")
         buffer.setCursorPosition(column = 1, row = 0)
-        buffer.insertText("Z")
+        buffer.insert("Z")
 
-        assertEquals("eZfg", buffer.getScreenLine(0))
-        assertEquals("h   ", buffer.getScreenLine(1))
-        assertEquals("abcd\neZfg\nh   ", buffer.getHistoryContent())
+        assertEquals("eZfg", buffer.screenLineAt(0))
+        assertEquals("h   ", buffer.screenLineAt(1))
+        assertEquals("abcd\neZfg\nh   ", buffer.historyText())
     }
 
     @Test
     fun insert_text_moves_cursor_to_position_after_inserted_text() {
         val buffer = buffer(width = 5, height = 2)
 
-        buffer.writeText("abc")
+        buffer.write("abc")
         buffer.setCursorPosition(column = 1, row = 0)
-        buffer.insertText("XY")
+        buffer.insert("XY")
 
         assertCursor(buffer, column = 3, row = 0)
-        assertEquals("aXYbc", buffer.getScreenLine(0))
+        assertEquals("aXYbc", buffer.screenLineAt(0))
     }
 
     @Test
     fun delete_characters_removes_text_at_cursor_and_shifts_remaining_content_left() {
         val buffer = buffer(width = 5, height = 2)
 
-        buffer.writeText("abcde")
+        buffer.write("abcde")
         buffer.setCursorPosition(column = 1, row = 0)
         buffer.deleteCharacters()
 
-        assertEquals("acde ", buffer.getScreenLine(0))
+        assertEquals("acde ", buffer.screenLineAt(0))
         assertCursor(buffer, column = 1, row = 0)
     }
 
@@ -388,24 +388,24 @@ class TerminalBufferTest {
     fun delete_characters_removes_wide_graphemes_as_one_unit() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("a界bc")
+        buffer.write("a界bc")
         buffer.setCursorPosition(column = 1, row = 0)
         buffer.deleteCharacters()
 
-        assertEquals("abc   ", buffer.getScreenLine(0))
-        assertEquals(CellKind.GraphemeStart("b", 1), buffer.getScreenCell(column = 1, row = 0).kind)
-        assertEquals(CellKind.Empty, buffer.getScreenCell(column = 3, row = 0).kind)
+        assertEquals("abc   ", buffer.screenLineAt(0))
+        assertEquals(CellKind.GraphemeStart("b", 1), buffer.screenCellAt(column = 1, row = 0).kind)
+        assertEquals(CellKind.Empty, buffer.screenCellAt(column = 3, row = 0).kind)
     }
 
     @Test
     fun delete_characters_normalizes_from_continuation_cells_before_deleting() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("界ab")
+        buffer.write("界ab")
         buffer.setCursorPosition(column = 1, row = 0)
         buffer.deleteCharacters()
 
-        assertEquals("ab    ", buffer.getScreenLine(0))
+        assertEquals("ab    ", buffer.screenLineAt(0))
         assertCursor(buffer, column = 0, row = 0)
     }
 
@@ -413,10 +413,10 @@ class TerminalBufferTest {
     fun backspace_deletes_the_grapheme_before_the_cursor_and_shifts_left() {
         val buffer = buffer(width = 5, height = 2)
 
-        buffer.writeText("abcde")
+        buffer.write("abcde")
         buffer.backspace()
 
-        assertEquals("abcd ", buffer.getScreenLine(0))
+        assertEquals("abcd ", buffer.screenLineAt(0))
         assertCursor(buffer, column = 4, row = 0)
     }
 
@@ -424,11 +424,11 @@ class TerminalBufferTest {
     fun backspace_removes_wide_graphemes_as_one_unit() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("a界bc")
+        buffer.write("a界bc")
         buffer.setCursorPosition(column = 3, row = 0)
         buffer.backspace()
 
-        assertEquals("abc   ", buffer.getScreenLine(0))
+        assertEquals("abc   ", buffer.screenLineAt(0))
         assertCursor(buffer, column = 1, row = 0)
     }
 
@@ -436,11 +436,11 @@ class TerminalBufferTest {
     fun backspace_at_start_of_row_keeps_content_unchanged() {
         val buffer = buffer(width = 5, height = 2)
 
-        buffer.writeText("abc")
+        buffer.write("abc")
         buffer.setCursorPosition(column = 0, row = 0)
         buffer.backspace()
 
-        assertEquals("abc  ", buffer.getScreenLine(0))
+        assertEquals("abc  ", buffer.screenLineAt(0))
         assertCursor(buffer, column = 0, row = 0)
     }
 
@@ -448,36 +448,36 @@ class TerminalBufferTest {
     fun insert_empty_line_at_bottom_scrolls_top_visible_line_into_scrollback() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcd")
-        buffer.writeText("ef")
+        buffer.write("abcd")
+        buffer.write("ef")
         buffer.insertEmptyLineAtBottom()
 
-        assertEquals("ef  ", buffer.getScreenLine(0))
-        assertEquals("    ", buffer.getScreenLine(1))
-        assertEquals("abcd\nef  \n    ", buffer.getHistoryContent())
+        assertEquals("ef  ", buffer.screenLineAt(0))
+        assertEquals("    ", buffer.screenLineAt(1))
+        assertEquals("abcd\nef  \n    ", buffer.historyText())
     }
 
     @Test
     fun scrollback_is_trimmed_to_maximum_size() {
         val buffer = buffer(height = 2, scrollback = 1)
 
-        buffer.writeText("abcd")
-        buffer.writeText("efgh")
+        buffer.write("abcd")
+        buffer.write("efgh")
         buffer.insertEmptyLineAtBottom()
 
-        assertEquals("efgh\n    \n    ", buffer.getHistoryContent())
+        assertEquals("efgh\n    \n    ", buffer.historyText())
     }
 
     @Test
     fun clear_screen_resets_visible_content_but_keeps_scrollback() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcdefghi")
+        buffer.write("abcdefghi")
         buffer.clearScreen()
 
-        assertEquals("    ", buffer.getScreenLine(0))
-        assertEquals("    ", buffer.getScreenLine(1))
-        assertEquals("abcd\n    \n    ", buffer.getHistoryContent())
+        assertEquals("    ", buffer.screenLineAt(0))
+        assertEquals("    ", buffer.screenLineAt(1))
+        assertEquals("abcd\n    \n    ", buffer.historyText())
         assertCursor(buffer, column = 0, row = 0)
     }
 
@@ -487,13 +487,13 @@ class TerminalBufferTest {
         val attributes = attributes(TerminalColor.YELLOW, TerminalColor.BLUE, TextStyle.UNDERLINE)
 
         buffer.setCurrentAttributes(attributes)
-        buffer.writeText("abcdefghi")
+        buffer.write("abcdefghi")
         buffer.clearScreenAndScrollback()
 
-        assertEquals("    ", buffer.getScreenLine(0))
-        assertEquals("    ", buffer.getScreenLine(1))
-        assertEquals("    \n    ", buffer.getHistoryContent())
-        assertEquals(CellAttributes(), buffer.getCurrentAttributes())
+        assertEquals("    ", buffer.screenLineAt(0))
+        assertEquals("    ", buffer.screenLineAt(1))
+        assertEquals("    \n    ", buffer.historyText())
+        assertEquals(CellAttributes(), buffer.currentAttributes())
         assertCursor(buffer, column = 0, row = 0)
     }
 
@@ -503,9 +503,9 @@ class TerminalBufferTest {
         val attributes = attributes(TerminalColor.MAGENTA, TerminalColor.BLACK, TextStyle.BOLD)
 
         buffer.setCurrentAttributes(attributes)
-        buffer.writeText("Q")
+        buffer.write("Q")
 
-        assertEquals(Cell(CellKind.GraphemeStart("Q", 1), attributes), buffer.getScreenCell(column = 0, row = 0))
+        assertEquals(Cell(CellKind.GraphemeStart("Q", 1), attributes), buffer.screenCellAt(column = 0, row = 0))
     }
 
     @Test
@@ -514,46 +514,46 @@ class TerminalBufferTest {
         val attributes = attributes(TerminalColor.MAGENTA, TerminalColor.BLACK, TextStyle.BOLD)
 
         buffer.setCurrentAttributes(attributes)
-        buffer.writeText("Q")
+        buffer.write("Q")
 
-        assertEquals("Q", buffer.getScreenCharacter(column = 0, row = 0))
-        assertEquals(null, buffer.getScreenCharacter(column = 1, row = 0))
-        assertEquals(attributes, buffer.getScreenAttributes(column = 0, row = 0))
-        assertEquals(CellAttributes(), buffer.getScreenAttributes(column = 1, row = 0))
+        assertEquals("Q", buffer.screenCharacterAt(column = 0, row = 0))
+        assertEquals(null, buffer.screenCharacterAt(column = 1, row = 0))
+        assertEquals(attributes, buffer.screenAttributesAt(column = 0, row = 0))
+        assertEquals(CellAttributes(), buffer.screenAttributesAt(column = 1, row = 0))
     }
 
     @Test
     fun get_history_cell_returns_character_and_attributes_for_combined_history_position() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcdefghi")
+        buffer.write("abcdefghi")
 
-        assertEquals(Cell(CellKind.GraphemeStart("a", 1), CellAttributes()), buffer.getHistoryCell(column = 0, row = 0))
-        assertEquals(Cell(CellKind.GraphemeStart("e", 1), CellAttributes()), buffer.getHistoryCell(column = 0, row = 1))
+        assertEquals(Cell(CellKind.GraphemeStart("a", 1), CellAttributes()), buffer.historyCellAt(column = 0, row = 0))
+        assertEquals(Cell(CellKind.GraphemeStart("e", 1), CellAttributes()), buffer.historyCellAt(column = 0, row = 1))
     }
 
     @Test
     fun get_history_character_and_attributes_return_spec_level_view_of_scrollback_and_screen() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcdefghi")
+        buffer.write("abcdefghi")
 
-        assertEquals("a", buffer.getHistoryCharacter(column = 0, row = 0))
-        assertEquals("e", buffer.getHistoryCharacter(column = 0, row = 1))
-        assertEquals("i", buffer.getHistoryCharacter(column = 0, row = 2))
-        assertEquals(null, buffer.getHistoryCharacter(column = 1, row = 2))
-        assertEquals(CellAttributes(), buffer.getHistoryAttributes(column = 0, row = 0))
-        assertEquals(CellAttributes(), buffer.getHistoryAttributes(column = 1, row = 2))
+        assertEquals("a", buffer.historyCharacterAt(column = 0, row = 0))
+        assertEquals("e", buffer.historyCharacterAt(column = 0, row = 1))
+        assertEquals("i", buffer.historyCharacterAt(column = 0, row = 2))
+        assertEquals(null, buffer.historyCharacterAt(column = 1, row = 2))
+        assertEquals(CellAttributes(), buffer.historyAttributesAt(column = 0, row = 0))
+        assertEquals(CellAttributes(), buffer.historyAttributesAt(column = 1, row = 2))
     }
 
     @Test
     fun write_text_stores_wide_grapheme_start_and_continuation_cells() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("界")
+        buffer.write("界")
 
-        assertEquals(CellKind.GraphemeStart("界", 2), buffer.getScreenCell(column = 0, row = 0).kind)
-        assertEquals(CellKind.Continuation, buffer.getScreenCell(column = 1, row = 0).kind)
+        assertEquals(CellKind.GraphemeStart("界", 2), buffer.screenCellAt(column = 0, row = 0).kind)
+        assertEquals(CellKind.Continuation, buffer.screenCellAt(column = 1, row = 0).kind)
         assertCursor(buffer, column = 2, row = 0)
     }
 
@@ -562,11 +562,11 @@ class TerminalBufferTest {
         val buffer = buffer(height = 2)
 
         buffer.setCursorPosition(column = 3, row = 0)
-        buffer.writeText("界")
+        buffer.write("界")
 
-        assertEquals("    ", buffer.getScreenLine(0))
-        assertEquals(CellKind.GraphemeStart("界", 2), buffer.getScreenCell(column = 0, row = 1).kind)
-        assertEquals(CellKind.Continuation, buffer.getScreenCell(column = 1, row = 1).kind)
+        assertEquals("    ", buffer.screenLineAt(0))
+        assertEquals(CellKind.GraphemeStart("界", 2), buffer.screenCellAt(column = 0, row = 1).kind)
+        assertEquals(CellKind.Continuation, buffer.screenCellAt(column = 1, row = 1).kind)
         assertCursor(buffer, column = 2, row = 1)
     }
 
@@ -574,19 +574,19 @@ class TerminalBufferTest {
     fun get_screen_line_does_not_render_continuation_cells_as_visible_spaces() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("a界b")
+        buffer.write("a界b")
 
-        assertEquals("a界b  ", buffer.getScreenLine(0))
+        assertEquals("a界b  ", buffer.screenLineAt(0))
     }
 
     @Test
     fun resize_width_grow_preserves_existing_graphemes_and_pads_right_side() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("a界")
+        buffer.write("a界")
         buffer.resize(newWidth = 6, newHeight = 2)
 
-        assertEquals("a界   ", buffer.getScreenLine(0))
+        assertEquals("a界   ", buffer.screenLineAt(0))
     }
 
     @Test
@@ -595,54 +595,54 @@ class TerminalBufferTest {
         val attributes = attributes(TerminalColor.GREEN, TerminalColor.BLACK, TextStyle.BOLD)
 
         buffer.setCurrentAttributes(attributes)
-        buffer.writeText("界")
+        buffer.write("界")
         buffer.resize(newWidth = 6, newHeight = 2)
 
-        assertEquals(attributes, buffer.getScreenCell(column = 0, row = 0).attributes)
-        assertEquals(attributes, buffer.getScreenCell(column = 1, row = 0).attributes)
+        assertEquals(attributes, buffer.screenCellAt(column = 0, row = 0).attributes)
+        assertEquals(attributes, buffer.screenCellAt(column = 1, row = 0).attributes)
     }
 
     @Test
     fun resize_width_shrink_keeps_only_whole_graphemes_that_fit() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("a界b")
+        buffer.write("a界b")
         buffer.resize(newWidth = 3, newHeight = 2)
 
-        assertEquals("a界", buffer.getScreenLine(0))
+        assertEquals("a界", buffer.screenLineAt(0))
     }
 
     @Test
     fun resize_width_shrink_drops_wide_grapheme_that_no_longer_fits() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("ab界")
+        buffer.write("ab界")
         buffer.resize(newWidth = 3, newHeight = 2)
 
-        assertEquals("ab ", buffer.getScreenLine(0))
+        assertEquals("ab ", buffer.screenLineAt(0))
     }
 
     @Test
     fun resize_width_shrink_never_leaves_continuation_cells_visible() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("a界b")
+        buffer.write("a界b")
         buffer.resize(newWidth = 2, newHeight = 2)
 
-        assertEquals("a ", buffer.getScreenLine(0))
-        assertEquals(CellKind.Empty, buffer.getScreenCell(column = 1, row = 0).kind)
+        assertEquals("a ", buffer.screenLineAt(0))
+        assertEquals(CellKind.Empty, buffer.screenCellAt(column = 1, row = 0).kind)
     }
 
     @Test
     fun resize_height_grow_appends_blank_rows_at_bottom() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcd")
+        buffer.write("abcd")
         buffer.resize(newWidth = 4, newHeight = 4)
 
-        assertEquals("abcd", buffer.getScreenLine(0))
-        assertEquals("    ", buffer.getScreenLine(2))
-        assertEquals("    ", buffer.getScreenLine(3))
+        assertEquals("abcd", buffer.screenLineAt(0))
+        assertEquals("    ", buffer.screenLineAt(2))
+        assertEquals("    ", buffer.screenLineAt(3))
     }
 
     @Test
@@ -656,7 +656,7 @@ class TerminalBufferTest {
         buffer.fillLine('c')
         buffer.resize(newWidth = 4, newHeight = 2)
 
-        assertEquals("aaaa\nbbbb\ncccc", buffer.getHistoryContent())
+        assertEquals("aaaa\nbbbb\ncccc", buffer.historyText())
     }
 
     @Test
@@ -670,11 +670,11 @@ class TerminalBufferTest {
         buffer.fillLine('c')
         buffer.resize(newWidth = 4, newHeight = 2)
 
-        assertEquals("aaaa\nbbbb\ncccc", buffer.getHistoryContent())
+        assertEquals("aaaa\nbbbb\ncccc", buffer.historyText())
 
         buffer.insertEmptyLineAtBottom()
 
-        assertEquals("bbbb\ncccc\n    ", buffer.getHistoryContent())
+        assertEquals("bbbb\ncccc\n    ", buffer.historyText())
     }
 
     @Test
@@ -691,18 +691,18 @@ class TerminalBufferTest {
     fun resize_normalizes_cursor_off_continuation_cell() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("a界b")
+        buffer.write("a界b")
         buffer.setCursorPosition(column = 2, row = 0)
         buffer.resize(newWidth = 3, newHeight = 2)
 
-        assertEquals(1, buffer.getCursorColumn())
+        assertEquals(1, buffer.cursorColumn())
     }
 
     @Test
     fun move_cursor_right_skips_continuation_cells_of_wide_graphemes() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("界a")
+        buffer.write("界a")
         buffer.setCursorPosition(column = 0, row = 0)
         buffer.moveCursorRight()
 
@@ -713,13 +713,13 @@ class TerminalBufferTest {
     fun insert_text_keeps_wide_grapheme_cells_together() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("ab")
+        buffer.write("ab")
         buffer.setCursorPosition(column = 1, row = 0)
-        buffer.insertText("界")
+        buffer.insert("界")
 
-        assertEquals("a界b  ", buffer.getScreenLine(0))
-        assertEquals(CellKind.GraphemeStart("界", 2), buffer.getScreenCell(column = 1, row = 0).kind)
-        assertEquals(CellKind.Continuation, buffer.getScreenCell(column = 2, row = 0).kind)
+        assertEquals("a界b  ", buffer.screenLineAt(0))
+        assertEquals(CellKind.GraphemeStart("界", 2), buffer.screenCellAt(column = 1, row = 0).kind)
+        assertEquals(CellKind.Continuation, buffer.screenCellAt(column = 2, row = 0).kind)
     }
 
     @Test
@@ -771,29 +771,29 @@ class TerminalBufferTest {
     fun write_text_stores_emoji_modifier_sequence_in_one_grapheme_start() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("👍🏻")
+        buffer.write("👍🏻")
 
-        assertEquals(CellKind.GraphemeStart("👍🏻", 2), buffer.getScreenCell(0, 0).kind)
-        assertEquals(CellKind.Continuation, buffer.getScreenCell(1, 0).kind)
+        assertEquals(CellKind.GraphemeStart("👍🏻", 2), buffer.screenCellAt(0, 0).kind)
+        assertEquals(CellKind.Continuation, buffer.screenCellAt(1, 0).kind)
     }
 
     @Test
     fun write_text_stores_zwj_sequence_in_one_grapheme_start() {
         val buffer = buffer(width = 8, height = 2)
 
-        buffer.writeText("👨‍👩‍👧‍👦")
+        buffer.write("👨‍👩‍👧‍👦")
 
-        assertEquals(CellKind.GraphemeStart("👨‍👩‍👧‍👦", 2), buffer.getScreenCell(0, 0).kind)
-        assertEquals(CellKind.Continuation, buffer.getScreenCell(1, 0).kind)
+        assertEquals(CellKind.GraphemeStart("👨‍👩‍👧‍👦", 2), buffer.screenCellAt(0, 0).kind)
+        assertEquals(CellKind.Continuation, buffer.screenCellAt(1, 0).kind)
     }
 
     @Test
     fun write_text_stores_combining_mark_sequence_in_one_grapheme_start() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("e\u0301")
+        buffer.write("e\u0301")
 
-        assertEquals(CellKind.GraphemeStart("e\u0301", 1), buffer.getScreenCell(0, 0).kind)
+        assertEquals(CellKind.GraphemeStart("e\u0301", 1), buffer.screenCellAt(0, 0).kind)
         assertCursor(buffer, column = 1, row = 0)
     }
 
@@ -801,7 +801,7 @@ class TerminalBufferTest {
     fun cursor_advances_by_grapheme_display_width_not_codepoint_count() {
         val buffer = buffer(width = 6, height = 2)
 
-        buffer.writeText("👍🏻a")
+        buffer.write("👍🏻a")
 
         assertCursor(buffer, column = 3, row = 0)
     }
@@ -810,119 +810,119 @@ class TerminalBufferTest {
     fun insert_text_keeps_emoji_modifier_sequence_together() {
         val buffer = buffer(width = 8, height = 2)
 
-        buffer.writeText("ab")
+        buffer.write("ab")
         buffer.setCursorPosition(column = 1, row = 0)
-        buffer.insertText("👍🏻")
+        buffer.insert("👍🏻")
 
-        assertEquals(CellKind.GraphemeStart("👍🏻", 2), buffer.getScreenCell(1, 0).kind)
-        assertEquals(CellKind.Continuation, buffer.getScreenCell(2, 0).kind)
-        assertEquals("a👍🏻b    ", buffer.getScreenLine(0))
+        assertEquals(CellKind.GraphemeStart("👍🏻", 2), buffer.screenCellAt(1, 0).kind)
+        assertEquals(CellKind.Continuation, buffer.screenCellAt(2, 0).kind)
+        assertEquals("a👍🏻b    ", buffer.screenLineAt(0))
     }
 
     @Test
     fun insert_text_keeps_zwj_sequence_together() {
         val buffer = buffer(width = 8, height = 2)
 
-        buffer.writeText("ab")
+        buffer.write("ab")
         buffer.setCursorPosition(column = 1, row = 0)
-        buffer.insertText("👨‍👩‍👧‍👦")
+        buffer.insert("👨‍👩‍👧‍👦")
 
-        assertEquals(CellKind.GraphemeStart("👨‍👩‍👧‍👦", 2), buffer.getScreenCell(1, 0).kind)
-        assertEquals(CellKind.Continuation, buffer.getScreenCell(2, 0).kind)
+        assertEquals(CellKind.GraphemeStart("👨‍👩‍👧‍👦", 2), buffer.screenCellAt(1, 0).kind)
+        assertEquals(CellKind.Continuation, buffer.screenCellAt(2, 0).kind)
     }
 
     @Test
     fun insert_before_wide_grapheme_does_not_split_existing_cluster() {
         val buffer = buffer(width = 8, height = 2)
 
-        buffer.writeText("界b")
+        buffer.write("界b")
         buffer.setCursorPosition(column = 0, row = 0)
-        buffer.insertText("a")
+        buffer.insert("a")
 
-        assertEquals(CellKind.GraphemeStart("界", 2), buffer.getScreenCell(1, 0).kind)
-        assertEquals(CellKind.Continuation, buffer.getScreenCell(2, 0).kind)
-        assertEquals("a界b    ", buffer.getScreenLine(0))
+        assertEquals(CellKind.GraphemeStart("界", 2), buffer.screenCellAt(1, 0).kind)
+        assertEquals(CellKind.Continuation, buffer.screenCellAt(2, 0).kind)
+        assertEquals("a界b    ", buffer.screenLineAt(0))
     }
 
     @Test
     fun move_cursor_right_skips_continuation_cells_for_emoji_clusters() {
         val buffer = buffer(width = 8, height = 2)
 
-        buffer.writeText("👍🏻a")
+        buffer.write("👍🏻a")
         buffer.setCursorPosition(column = 0, row = 0)
         buffer.moveCursorRight()
 
-        assertEquals(2, buffer.getCursorColumn())
+        assertEquals(2, buffer.cursorColumn())
     }
 
     @Test
     fun set_cursor_position_normalizes_from_continuation_to_grapheme_start() {
         val buffer = buffer(width = 8, height = 2)
 
-        buffer.writeText("👍🏻a")
+        buffer.write("👍🏻a")
         buffer.setCursorPosition(column = 1, row = 0)
 
-        assertEquals(0, buffer.getCursorColumn())
+        assertEquals(0, buffer.cursorColumn())
     }
 
     @Test
     fun overwrite_on_continuation_clears_the_whole_grapheme() {
         val buffer = buffer(width = 8, height = 2)
 
-        buffer.writeText("👍🏻a")
+        buffer.write("👍🏻a")
         buffer.setCursorPosition(column = 1, row = 0)
-        buffer.writeText("b")
+        buffer.write("b")
 
-        assertEquals("b a     ", buffer.getScreenLine(0))
-        assertEquals(CellKind.GraphemeStart("b", 1), buffer.getScreenCell(0, 0).kind)
-        assertEquals(CellKind.Empty, buffer.getScreenCell(1, 0).kind)
+        assertEquals("b a     ", buffer.screenLineAt(0))
+        assertEquals(CellKind.GraphemeStart("b", 1), buffer.screenCellAt(0, 0).kind)
+        assertEquals(CellKind.Empty, buffer.screenCellAt(1, 0).kind)
     }
 
     @Test
     fun get_screen_line_returns_visible_row_as_plain_string() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcd")
+        buffer.write("abcd")
 
-        assertEquals("abcd", buffer.getScreenLine(0))
+        assertEquals("abcd", buffer.screenLineAt(0))
     }
 
     @Test
     fun get_history_line_returns_combined_row_as_plain_string() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcdefghi")
+        buffer.write("abcdefghi")
 
-        assertEquals("abcd", buffer.getHistoryLine(0))
-        assertEquals("efgh", buffer.getHistoryLine(1))
-        assertEquals("i   ", buffer.getHistoryLine(2))
+        assertEquals("abcd", buffer.historyLineAt(0))
+        assertEquals("efgh", buffer.historyLineAt(1))
+        assertEquals("i   ", buffer.historyLineAt(2))
     }
 
     @Test
     fun get_screen_content_returns_visible_rows_joined_by_newlines() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcdef")
+        buffer.write("abcdef")
 
-        assertEquals("abcd\nef  ", buffer.getScreenContent())
+        assertEquals("abcd\nef  ", buffer.screenText())
     }
 
     @Test
     fun get_history_content_returns_scrollback_then_screen_joined_by_newlines() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcdefghi")
+        buffer.write("abcdefghi")
 
-        assertEquals("abcd\nefgh\ni   ", buffer.getHistoryContent())
+        assertEquals("abcd\nefgh\ni   ", buffer.historyText())
     }
 
     @Test
     fun write_text_with_empty_string_does_not_change_content_or_cursor() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("")
+        buffer.write("")
 
-        assertEquals("    \n    ", buffer.getScreenContent())
+        assertEquals("    \n    ", buffer.screenText())
         assertCursor(buffer, column = 0, row = 0)
     }
 
@@ -930,9 +930,9 @@ class TerminalBufferTest {
     fun insert_text_with_empty_string_does_not_change_content_or_cursor() {
         val buffer = buffer(height = 2)
 
-        buffer.insertText("")
+        buffer.insert("")
 
-        assertEquals("    \n    ", buffer.getScreenContent())
+        assertEquals("    \n    ", buffer.screenText())
         assertCursor(buffer, column = 0, row = 0)
     }
 
@@ -953,21 +953,21 @@ class TerminalBufferTest {
     fun bottom_overflow_discards_oldest_scrollback_line_when_at_capacity() {
         val buffer = buffer(height = 2, scrollback = 2)
 
-        buffer.writeText("abcdefghijklmnopq")
+        buffer.write("abcdefghijklmnopq")
 
-        assertEquals("efgh\nijkl\nmnop\nq   ", buffer.getHistoryContent())
+        assertEquals("efgh\nijkl\nmnop\nq   ", buffer.historyText())
     }
 
     @Test
     fun fill_line_preserves_other_rows() {
         val buffer = buffer(height = 2)
 
-        buffer.writeText("abcd")
+        buffer.write("abcd")
         buffer.setCursorPosition(column = 0, row = 1)
         buffer.fillLine('x')
 
-        assertEquals("abcd", buffer.getScreenLine(0))
-        assertEquals("xxxx", buffer.getScreenLine(1))
+        assertEquals("abcd", buffer.screenLineAt(0))
+        assertEquals("xxxx", buffer.screenLineAt(1))
     }
 
     @Test

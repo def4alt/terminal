@@ -27,37 +27,29 @@ class TerminalBuffer(
         syncLogicalStateFromRows()
     }
 
-    fun getCursorColumn(): Int = cursorColumn
+    fun cursorColumn(): Int = cursorColumn
 
-    fun cursorColumn(): Int = getCursorColumn()
+    fun cursorRow(): Int = cursorRow
 
-    fun getCursorRow(): Int = cursorRow
-
-    fun cursorRow(): Int = getCursorRow()
-
-    fun getCurrentAttributes(): CellAttributes = currentAttributes
-
-    fun currentAttributes(): CellAttributes = getCurrentAttributes()
+    fun currentAttributes(): CellAttributes = currentAttributes
 
     fun setCurrentAttributes(attributes: CellAttributes) {
         currentAttributes = attributes
     }
 
-    fun writeText(text: String) {
+    fun write(text: String) {
         for (grapheme in segmentGraphemes(text)) {
             writeGrapheme(grapheme)
         }
         syncLogicalScreenFromScreenRows()
     }
 
-    fun write(text: String) = writeText(text)
-
     fun fillLine(character: Char?) {
         screen[cursorRow] = BufferRow(ScreenLine.filled(width, fillCell(character)))
         syncLogicalScreenFromScreenRows()
     }
 
-    fun insertText(text: String) {
+    fun insert(text: String) {
         for (grapheme in segmentGraphemes(text)) {
             normalizeCursor()
             for (cell in grapheme.toCells(currentAttributes)) {
@@ -67,8 +59,6 @@ class TerminalBuffer(
         }
         syncLogicalScreenFromScreenRows()
     }
-
-    fun insert(text: String) = insertText(text)
 
     fun deleteCharacters(count: Int = 1) {
         require(count >= 0) { "count must be non-negative" }
@@ -173,45 +163,25 @@ class TerminalBuffer(
         normalizeCursorPosition()
     }
 
-    fun getScreenLine(row: Int): String = screenProjection().visibleRows[row].screenLine.toDisplayText()
+    fun screenLineAt(row: Int): String = screenProjection().visibleRows[row].screenLine.toDisplayText()
 
-    fun screenLineAt(row: Int): String = getScreenLine(row)
+    fun screenCellAt(column: Int, row: Int): Cell = screenProjection().visibleRows[row].screenLine.cellAt(column)
 
-    fun getScreenCell(column: Int, row: Int): Cell = screenProjection().visibleRows[row].screenLine.cellAt(column)
+    fun screenCharacterAt(column: Int, row: Int): String? = characterOf(screenCellAt(column, row))
 
-    fun screenCellAt(column: Int, row: Int): Cell = getScreenCell(column, row)
+    fun screenAttributesAt(column: Int, row: Int): CellAttributes = screenCellAt(column, row).attributes
 
-    fun getScreenCharacter(column: Int, row: Int): String? = characterOf(getScreenCell(column, row))
+    fun historyCellAt(column: Int, row: Int): Cell = historyProjectionRows()[row].screenLine.cellAt(column)
 
-    fun screenCharacterAt(column: Int, row: Int): String? = getScreenCharacter(column, row)
+    fun historyCharacterAt(column: Int, row: Int): String? = characterOf(historyCellAt(column, row))
 
-    fun getScreenAttributes(column: Int, row: Int): CellAttributes = getScreenCell(column, row).attributes
+    fun historyAttributesAt(column: Int, row: Int): CellAttributes = historyCellAt(column, row).attributes
 
-    fun screenAttributesAt(column: Int, row: Int): CellAttributes = getScreenAttributes(column, row)
+    fun historyLineAt(row: Int): String = historyProjectionRows()[row].screenLine.toDisplayText()
 
-    fun getHistoryCell(column: Int, row: Int): Cell = historyProjectionRows()[row].screenLine.cellAt(column)
+    fun screenText(): String = screenProjection().visibleRows.joinToString("\n") { it.screenLine.toDisplayText() }
 
-    fun historyCellAt(column: Int, row: Int): Cell = getHistoryCell(column, row)
-
-    fun getHistoryCharacter(column: Int, row: Int): String? = characterOf(getHistoryCell(column, row))
-
-    fun historyCharacterAt(column: Int, row: Int): String? = getHistoryCharacter(column, row)
-
-    fun getHistoryAttributes(column: Int, row: Int): CellAttributes = getHistoryCell(column, row).attributes
-
-    fun historyAttributesAt(column: Int, row: Int): CellAttributes = getHistoryAttributes(column, row)
-
-    fun getHistoryLine(row: Int): String = historyProjectionRows()[row].screenLine.toDisplayText()
-
-    fun historyLineAt(row: Int): String = getHistoryLine(row)
-
-    fun getScreenContent(): String = screenProjection().visibleRows.joinToString("\n") { it.screenLine.toDisplayText() }
-
-    fun screenText(): String = getScreenContent()
-
-    fun getHistoryContent(): String = historyProjectionRows().joinToString("\n") { it.screenLine.toDisplayText() }
-
-    fun historyText(): String = getHistoryContent()
+    fun historyText(): String = historyProjectionRows().joinToString("\n") { it.screenLine.toDisplayText() }
 
     private fun blankCell(): Cell = Cell()
 
