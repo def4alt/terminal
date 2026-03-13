@@ -86,6 +86,29 @@ class TerminalBufferCliBehaviorTest {
             assertTrue(rendered.contains("Cursor:"))
             assertTrue(rendered.contains("Attributes:"))
         }
+
+        @Test
+        fun show_uses_ansi_sequences_for_colored_and_styled_cells() {
+            val rendered = runCommands(
+                "set-attrs red blue bold underline",
+                "write A",
+                "show",
+            )
+
+            assertTrue(rendered.contains("\u001B[31;44;1;4mA"))
+        }
+
+        @Test
+        fun show_resets_styles_before_following_snapshot_sections() {
+            val rendered = runCommands(
+                "set-attrs bright_cyan blue bold",
+                "write A",
+                "show",
+            )
+
+            assertTrue(rendered.contains("\u001B[0m\nHistory:"))
+            assertTrue(rendered.contains("\u001B[0m\nCursor:"))
+        }
     }
 
     @Nested

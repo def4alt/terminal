@@ -13,6 +13,8 @@ could sit on top later.
 ```mermaid
 flowchart TD
     S[Shell or producer] --> B[TerminalBuffer]
+    CLI[Interactive CLI] --> R[ANSI Snapshot Renderer]
+    R --> B
 
     B --> C[Cursor state]
     B --> A[Current attributes]
@@ -28,7 +30,6 @@ flowchart TD
     CELL --> BG[Background color]
     CELL --> ST[Style flags]
 
-    CLI[Interactive CLI] --> B
     T[JUnit tests] --> B
 ```
 
@@ -43,6 +44,7 @@ flowchart TD
 - Editing also supports `resize(newWidth, newHeight)` with a deterministic no-reflow policy.
 - Content access supports cells, characters, attributes, lines, visible screen content, and combined history+screen content.
 - The project includes an interactive CLI for manually exercising the buffer.
+- `show` can render the visible screen with ANSI colors and text styles.
 - The project includes behavior-focused unit tests with edge cases and boundary conditions.
 
 ## Solution overview
@@ -98,52 +100,44 @@ Example CLI session:
 
 ```text
 help
-write hello
-show
-cursor
+write hello 日本 💛
 set-cursor 1 0
+set-attrs bright_cyan blue bold underline
 insert X
-move right 2
-set-attrs green default bold
-attrs
-fill =
-append-line
-resize 6 3
 history
-clear-screen
+set-cursor 0 3
+set-attrs bright_yellow default italic
+write privit 🇺🇦 ❤️
+show
+resize 6 3
+cursor
+clear-all
 reset
 quit
 ```
 
 The CLI is intentionally simple: it is a manual playground for the buffer, not a terminal emulator UI.
 
+- `show` renders the visible screen with ANSI colors and styles when the terminal supports them.
 - `write <text>` and `insert <text>` treat everything after the command name as raw text.
 - `fill <char|empty>` accepts either `empty` or the first character after `fill `.
 - `resize <width> <height>` changes the visible dimensions without reflowing logical lines.
 - `set-attrs <fg> <bg> <styles...>` uses names like `default`, `green`, `bright_red`, `bold`, `italic`, and `underline`.
 - `history` prints scrollback plus the current screen, while `screen` prints only the visible screen.
 
+Terminal styling here is limited to what the terminal supports: color, bold, italic, and underline. Things like actual font size are controlled by the terminal emulator, not by this program.
+
 For concrete behavior examples, see `src/test/kotlin/terminal/buffer/TerminalBufferTest.kt`.
 For behavior-doc tests, see `src/test/kotlin/terminal/buffer/TerminalBufferBehaviorTest.kt` and `src/test/kotlin/terminal/buffer/TerminalBufferCliBehaviorTest.kt`.
 
 ## Trade-offs and decisions
 
-- The project is delivered as a library plus a simple CLI, not a full terminal app. The spec asks for the terminal buffer core data structure, and the tests still act as the main behavior documentation.
 - The model favors readability and clean code over aggressive optimization.
 - Cells are immutable values, which makes tests and behavior easier to reason about.
 - Wide characters are modeled explicitly as grapheme-start plus continuation cells rather than as raw chars in isolated cells.
-- Writing now works at grapheme-cluster level instead of raw code point level.
-- Rendering reconstructs visible text from grapheme-start cells and does not print continuation cells as fake spaces.
-- Screen and history access are exposed through explicit read methods instead of exposing internal collections.
-- There is no ANSI parser, renderer, or escape-sequence handling in this project.
 - The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
-- The implementation covers common grapheme cases like combining marks, emoji skin-tone modifiers, ZWJ emoji sequences, flags, and wide CJK characters.
-- Resize stays at the buffer layer and does not attempt paragraph or wrap reflow.
-- Width growth preserves visible graphemes and pads with empty cells.
-- Width shrink keeps only whole graphemes that still fit on each visual row.
-- Height growth appends blank rows; height shrink moves trimmed top rows into scrollback.
-- After resize, the cursor is clamped into the new bounds and normalized left off continuation cells.
-- This is intentional: widening preserves existing visual rows instead of reconstructing logical paragraphs from screen state.
+- The CLI has a small ANSI renderer for `show`, but there is still no ANSI parser or escape-sequence interpreter.
+- Resize is grapheme-safe and predictable, but intentionally does not reflow previously wrapped content.
 - Full Unicode grapheme-boundary correctness across all edge cases is still a future improvement.
 
 ## Example usage in code
@@ -187,6 +181,7 @@ One important detail: string reconstruction APIs like `getScreenLine()` return v
 - `src/main/kotlin/terminal/buffer/GraphemeSegmenter.kt` - pragmatic grapheme segmentation
 - `src/main/kotlin/terminal/buffer/GraphemeWidth.kt` - grapheme display width rules
 - `src/main/kotlin/terminal/buffer/ScreenLine.kt` - internal line abstraction used for grapheme-safe row operations
+- `src/main/kotlin/terminal/buffer/AnsiSnapshotRenderer.kt` - ANSI-styled CLI snapshot rendering for `show`
 - `src/main/kotlin/terminal/buffer/CellAttributes.kt` - foreground/background/style attributes
 - `src/main/kotlin/terminal/buffer/TerminalColor.kt` - 16-color terminal palette plus default
 - `src/main/kotlin/terminal/buffer/TextStyle.kt` - supported text styles
