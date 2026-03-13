@@ -35,9 +35,15 @@ class TerminalBuffer(
 
     fun getCursorColumn(): Int = cursorColumn
 
+    fun cursorColumn(): Int = getCursorColumn()
+
     fun getCursorRow(): Int = cursorRow
 
+    fun cursorRow(): Int = getCursorRow()
+
     fun getCurrentAttributes(): CellAttributes = currentAttributes
+
+    fun currentAttributes(): CellAttributes = getCurrentAttributes()
 
     fun setCurrentAttributes(attributes: CellAttributes) {
         currentAttributes = attributes
@@ -49,6 +55,8 @@ class TerminalBuffer(
         }
         syncLogicalScreenFromScreenRows()
     }
+
+    fun write(text: String) = writeText(text)
 
     fun fillLine(character: Char?) {
         screen[cursorRow] = BufferRow(ScreenLine.filled(width, fillCell(character)))
@@ -65,6 +73,8 @@ class TerminalBuffer(
         }
         syncLogicalScreenFromScreenRows()
     }
+
+    fun insert(text: String) = insertText(text)
 
     fun deleteCharacters(count: Int = 1) {
         require(count >= 0) { "count must be non-negative" }
@@ -173,23 +183,43 @@ class TerminalBuffer(
 
     fun getScreenLine(row: Int): String = screenProjection().visibleRows[row].screenLine.toDisplayText()
 
+    fun screenLineAt(row: Int): String = getScreenLine(row)
+
     fun getScreenCell(column: Int, row: Int): Cell = screenProjection().visibleRows[row].screenLine.cellAt(column)
+
+    fun screenCellAt(column: Int, row: Int): Cell = getScreenCell(column, row)
 
     fun getScreenCharacter(column: Int, row: Int): String? = characterOf(getScreenCell(column, row))
 
+    fun screenCharacterAt(column: Int, row: Int): String? = getScreenCharacter(column, row)
+
     fun getScreenAttributes(column: Int, row: Int): CellAttributes = getScreenCell(column, row).attributes
+
+    fun screenAttributesAt(column: Int, row: Int): CellAttributes = getScreenAttributes(column, row)
 
     fun getHistoryCell(column: Int, row: Int): Cell = historyProjectionRows()[row].screenLine.cellAt(column)
 
+    fun historyCellAt(column: Int, row: Int): Cell = getHistoryCell(column, row)
+
     fun getHistoryCharacter(column: Int, row: Int): String? = characterOf(getHistoryCell(column, row))
+
+    fun historyCharacterAt(column: Int, row: Int): String? = getHistoryCharacter(column, row)
 
     fun getHistoryAttributes(column: Int, row: Int): CellAttributes = getHistoryCell(column, row).attributes
 
+    fun historyAttributesAt(column: Int, row: Int): CellAttributes = getHistoryAttributes(column, row)
+
     fun getHistoryLine(row: Int): String = historyProjectionRows()[row].screenLine.toDisplayText()
+
+    fun historyLineAt(row: Int): String = getHistoryLine(row)
 
     fun getScreenContent(): String = screenProjection().visibleRows.joinToString("\n") { it.screenLine.toDisplayText() }
 
+    fun screenText(): String = getScreenContent()
+
     fun getHistoryContent(): String = historyProjectionRows().joinToString("\n") { it.screenLine.toDisplayText() }
+
+    fun historyText(): String = getHistoryContent()
 
     private fun blankCell(): Cell = Cell()
 

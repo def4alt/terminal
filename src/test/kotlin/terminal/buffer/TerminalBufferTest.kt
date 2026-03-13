@@ -45,6 +45,30 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun simplified_screen_access_api_returns_character_attributes_and_line_text() {
+        val buffer = buffer(height = 2)
+
+        buffer.write("ab")
+
+        assertEquals("a", buffer.screenCharacterAt(0, 0))
+        assertEquals(CellAttributes(), buffer.screenAttributesAt(0, 0))
+        assertEquals("ab  ", buffer.screenLineAt(0))
+        assertEquals("ab  \n    ", buffer.screenText())
+    }
+
+    @Test
+    fun simplified_history_access_api_returns_character_attributes_and_line_text() {
+        val buffer = buffer(height = 2)
+
+        buffer.write("abcdefghi")
+
+        assertEquals("a", buffer.historyCharacterAt(0, 0))
+        assertEquals(CellAttributes(), buffer.historyAttributesAt(0, 0))
+        assertEquals("abcd", buffer.historyLineAt(0))
+        assertEquals("abcd\nefgh\ni   ", buffer.historyText())
+    }
+
+    @Test
     fun set_cursor_position_updates_cursor_when_inside_bounds() {
         val buffer = buffer()
 
