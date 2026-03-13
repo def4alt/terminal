@@ -9,10 +9,10 @@ internal object AnsiSnapshotRenderer {
         append(renderScreen(buffer))
         append(RESET).append('\n')
         appendLine("History:")
-        append(buffer.getHistoryContent())
+        append(buffer.historyText())
         append(RESET).append('\n')
-        appendLine("Cursor: (${buffer.getCursorColumn()}, ${buffer.getCursorRow()})")
-        append("Attributes: ${formatAttributes(buffer.getCurrentAttributes())}")
+        appendLine("Cursor: (${buffer.cursorColumn()}, ${buffer.cursorRow()})")
+        append("Attributes: ${formatAttributes(buffer.currentAttributes())}")
     }
 
     private fun renderScreen(buffer: TerminalBuffer): String {
@@ -23,7 +23,7 @@ internal object AnsiSnapshotRenderer {
         var activeAttributes = CellAttributes()
 
         for (column in 0 until buffer.width) {
-            val cell = buffer.getScreenCell(column, row)
+            val cell = buffer.screenCellAt(column, row)
             when (val kind = cell.kind) {
                 CellKind.Continuation -> Unit
                 CellKind.Empty -> {

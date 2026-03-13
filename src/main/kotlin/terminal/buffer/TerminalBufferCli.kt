@@ -74,7 +74,7 @@ class TerminalBufferCli(
             }
 
             parts == listOf("cursor") -> {
-                output.append("Cursor: (${buffer.getCursorColumn()}, ${buffer.getCursorRow()})\n")
+                output.append("Cursor: (${buffer.cursorColumn()}, ${buffer.cursorRow()})\n")
                 true
             }
 
@@ -102,17 +102,17 @@ class TerminalBufferCli(
             }
 
             parts == listOf("screen") -> {
-                output.append("Screen:\n").append(buffer.getScreenContent()).append('\n')
+                output.append("Screen:\n").append(buffer.screenText()).append('\n')
                 true
             }
 
             parts == listOf("history") -> {
-                output.append("History:\n").append(buffer.getHistoryContent()).append('\n')
+                output.append("History:\n").append(buffer.historyText()).append('\n')
                 true
             }
 
             parts == listOf("attrs") -> {
-                output.append("Attributes: ${formatAttributes(buffer.getCurrentAttributes())}\n")
+                output.append("Attributes: ${formatAttributes(buffer.currentAttributes())}\n")
                 true
             }
 
@@ -129,12 +129,12 @@ class TerminalBufferCli(
             parts == listOf("set-attrs") -> invalidUsage()
 
             trimmed.startsWith("write ") -> {
-                buffer.writeText(commandLine.substringAfter("write "))
+                buffer.write(commandLine.substringAfter("write "))
                 true
             }
 
             trimmed.startsWith("insert ") -> {
-                buffer.insertText(commandLine.substringAfter("insert "))
+                buffer.insert(commandLine.substringAfter("insert "))
                 true
             }
 

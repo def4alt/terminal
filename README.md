@@ -50,9 +50,9 @@ flowchart TD
 ## Solution overview
 
 The implementation keeps the model small on purpose.
-`TerminalBuffer` owns the mutable state: visible rows, scrollback rows, current attributes,
-and cursor position. `Cell` and `CellAttributes` are immutable value types so written content
-keeps the attributes it had at write time.
+`TerminalBuffer` owns the mutable state, current attributes, and cursor position, while row
+projection and ANSI rendering stay in dedicated helpers. `Cell` and `CellAttributes` are
+immutable value types so written content keeps the attributes it had at write time.
 
 The cell model now uses three explicit states:
 
@@ -63,9 +63,8 @@ The cell model now uses three explicit states:
 That lets the buffer represent both normal single-cell text and wide characters more cleanly.
 A wide grapheme is stored as one lead cell plus one continuation cell.
 
-The visible screen is stored as a fixed-height list of rows. Wrapped rows carry lightweight
-continuation metadata, and resize/edit operations can regroup those rows into logical grapheme
-content when they need to reflow. Scrollback is stored as a bounded FIFO list of rows.
+Visible rows are projected from logical grapheme content, and resize/edit operations reuse that
+projection instead of rebuilding screen strings ad hoc.
 
 This keeps the architecture clear and easy to test, even if it is not the most optimized
 representation for a real production terminal emulator.
@@ -148,15 +147,15 @@ For behavior-doc tests, see `src/test/kotlin/terminal/buffer/TerminalBufferBehav
 ```kotlin
 val buffer = TerminalBuffer(width = 8, height = 3, maxScrollbackLines = 10)
 
-buffer.writeText("hello")
+buffer.write("hello")
 buffer.setCursorPosition(column = 1, row = 0)
-buffer.insertText("X")
+buffer.insert("X")
 buffer.deleteCharacters(1)
 buffer.backspace()
 buffer.fillLine('=')
 
-println(buffer.getScreenContent())
-println(buffer.getHistoryContent())
+println(buffer.screenText())
+println(buffer.historyText())
 ```
 
 ## Unicode notes
@@ -174,7 +173,7 @@ Covered cases include ASCII text, combining-mark sequences like `é`, emoji mod
 
 The segmentation and width logic is pragmatic rather than fully Unicode-complete, but it avoids the broken spacing and codepoint-splitting behavior the earlier version had.
 
-One important detail: string reconstruction APIs like `getScreenLine()` return visible grapheme text plus blanks for truly empty cells. Continuation cells are not rendered as extra spaces.
+One important detail: string reconstruction APIs like `screenLineAt()` return visible grapheme text plus blanks for truly empty cells. Continuation cells are not rendered as extra spaces.
 
 ## Layout
 
@@ -185,10 +184,11 @@ One important detail: string reconstruction APIs like `getScreenLine()` return v
 - `src/main/kotlin/terminal/buffer/Grapheme.kt` - internal grapheme model
 - `src/main/kotlin/terminal/buffer/GraphemeSegmenter.kt` - pragmatic grapheme segmentation
 - `src/main/kotlin/terminal/buffer/GraphemeWidth.kt` - grapheme display width rules
-- `src/main/kotlin/terminal/buffer/BufferRow.kt` - visible row plus wrap-continuation metadata
-- `src/main/kotlin/terminal/buffer/LogicalLine.kt` - temporary logical grapheme grouping for reflow-aware operations
+- `src/main/kotlin/terminal/buffer/LogicalLine.kt` - logical grapheme content model
 - `src/main/kotlin/terminal/buffer/ScreenLine.kt` - internal line abstraction used for grapheme-safe row operations
 - `src/main/kotlin/terminal/buffer/StyledGrapheme.kt` - grapheme plus attributes for reflow and editing
+- `src/main/kotlin/terminal/buffer/ViewportProjector.kt` - screen/history row projection from logical content
+- `src/main/kotlin/terminal/buffer/CursorMapper.kt` - logical/screen cursor translation
 - `src/main/kotlin/terminal/buffer/AnsiSnapshotRenderer.kt` - ANSI-styled CLI snapshot rendering for `show`
 - `src/main/kotlin/terminal/buffer/CellAttributes.kt` - foreground/background/style attributes
 - `src/main/kotlin/terminal/buffer/TerminalColor.kt` - 16-color terminal palette plus default
