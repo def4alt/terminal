@@ -92,7 +92,8 @@ class TerminalBuffer(
         }
         cursorColumn = 0
         cursorRow = 0
-        syncLogicalScreenFromScreenRows()
+        logicalScreenLines.clear()
+        logicalScreenLines.addAll(MutableList(height) { blankLogicalLine() })
     }
 
     fun clearScreenAndScrollback() {
@@ -195,6 +196,8 @@ class TerminalBuffer(
     private fun blankLine(): ScreenLine = ScreenLine.blank(width)
 
     private fun blankRow(): BufferRow = BufferRow(blankLine())
+
+    private fun blankLogicalLine(): LogicalLine = LogicalLine().apply { append(List(width) { StyledGrapheme.blank() }) }
 
     private fun characterOf(cell: Cell): String? = when (val kind = cell.kind) {
         CellKind.Empty -> null
