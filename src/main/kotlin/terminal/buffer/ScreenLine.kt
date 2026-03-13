@@ -1,0 +1,58 @@
+package terminal.buffer
+
+internal class ScreenLine private constructor(
+    private val cells: MutableList<Cell>,
+) {
+    fun cellAt(column: Int): Cell = cells[column]
+
+    fun replace(column: Int, cell: Cell) {
+        cells[column] = cell
+    }
+
+    fun toDisplayText(): String = buildString {
+        for (cell in cells) {
+            when (val kind = cell.kind) {
+                CellKind.Empty -> append(' ')
+                CellKind.Continuation -> Unit
+                is CellKind.GraphemeStart -> append(kind.text)
+            }
+        }
+    }
+
+    fun resizeWidth(newWidth: Int): ScreenLine {
+        require(newWidth > 0) { "newWidth must be positive" }
+
+        val resized = blank(newWidth)
+        var column = 0
+
+        for (cell in cells) {
+            val kind = cell.kind as? CellKind.GraphemeStart ?: continue
+            if (column + kind.displayWidth > newWidth) {
+                break
+            }
+
+            resized.writeGrapheme(column, kind, cell.attributes)
+            column += kind.displayWidth
+        }
+
+        return resized
+    }
+
+    private fun writeGrapheme(column: Int, kind: CellKind.GraphemeStart, attributes: CellAttributes) {
+        for ((offset, cell) in Grapheme(kind.text, kind.displayWidth).toCells(attributes).withIndex()) {
+            replace(column + offset, cell)
+        }
+    }
+
+    companion object {
+        fun blank(width: Int): ScreenLine {
+            require(width > 0) { "width must be positive" }
+            return ScreenLine(MutableList(width) { Cell() })
+        }
+
+        fun filled(width: Int, cell: Cell): ScreenLine {
+            require(width > 0) { "width must be positive" }
+            return ScreenLine(MutableList(width) { cell })
+        }
+    }
+}

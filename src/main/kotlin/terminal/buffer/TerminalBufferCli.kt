@@ -11,8 +11,21 @@ fun renderHelp(): String = buildString {
     appendLine("Available commands:")
     appendLine("help")
     appendLine("show")
+    appendLine("screen")
+    appendLine("history")
+    appendLine("cursor")
+    appendLine("set-cursor <column> <row>")
+    appendLine("move <up|down|left|right> <count>")
+    appendLine("attrs")
+    appendLine("set-attrs <fg> <bg> [styles...]")
     appendLine("write <text>")
     appendLine("insert <text>")
+    appendLine("fill <char|empty>")
+    appendLine("append-line")
+    appendLine("clear-screen")
+    appendLine("clear-all")
+    appendLine("resize <width> <height>")
+    appendLine("reset")
     appendLine("quit")
 }
 
@@ -48,60 +61,62 @@ class TerminalBufferCli(
 
     internal fun execute(commandLine: String): Boolean {
         val trimmed = commandLine.trim()
+        val parts = trimmed.split(" ").filter { it.isNotBlank() }
 
         if (trimmed.isEmpty()) {
             return true
         }
 
         return when {
-            trimmed == "help" -> {
+            parts == listOf("help") -> {
                 output.append(renderHelp())
                 true
             }
 
-            trimmed == "show" -> {
+            parts == listOf("show") -> {
                 output.append(renderSnapshot(buffer)).append('\n')
                 true
             }
 
-            trimmed == "cursor" -> {
+            parts == listOf("cursor") -> {
                 output.append("Cursor: (${buffer.getCursorColumn()}, ${buffer.getCursorRow()})\n")
                 true
             }
 
-            trimmed.startsWith("set-cursor ") -> {
-                val parts = trimmed.split(" ")
-                buffer.setCursorPosition(parts[1].toInt(), parts[2].toInt())
+            parts.firstOrNull() == "set-cursor" -> {
+                val coordinates = parseTwoInts(parts) ?: return invalidUsage()
+                buffer.setCursorPosition(coordinates.first, coordinates.second)
                 true
             }
 
-            trimmed == "set-cursor" -> invalidUsage()
+            parts.firstOrNull() == "move" -> {
+                if (parts.size != 3) {
+                    return invalidUsage()
+                }
+                val count = parts[2].toIntOrNull() ?: return invalidUsage()
 
-            trimmed.startsWith("move ") -> {
-                val parts = trimmed.split(" ")
-                val count = parts[2].toInt()
                 when (parts[1]) {
                     "up" -> buffer.moveCursorUp(count)
                     "down" -> buffer.moveCursorDown(count)
                     "left" -> buffer.moveCursorLeft(count)
                     "right" -> buffer.moveCursorRight(count)
+                    else -> return invalidUsage()
                 }
+
                 true
             }
 
-            trimmed == "move" -> invalidUsage()
-
-            trimmed == "screen" -> {
+            parts == listOf("screen") -> {
                 output.append("Screen:\n").append(buffer.getScreenContent()).append('\n')
                 true
             }
 
-            trimmed == "history" -> {
+            parts == listOf("history") -> {
                 output.append("History:\n").append(buffer.getHistoryContent()).append('\n')
                 true
             }
 
-            trimmed == "attrs" -> {
+            parts == listOf("attrs") -> {
                 output.append("Attributes: ${formatAttributes(buffer.getCurrentAttributes())}\n")
                 true
             }
@@ -116,7 +131,7 @@ class TerminalBufferCli(
                 true
             }
 
-            trimmed == "set-attrs" -> invalidUsage()
+            parts == listOf("set-attrs") -> invalidUsage()
 
             trimmed.startsWith("write ") -> {
                 buffer.writeText(commandLine.substringAfter("write "))
@@ -128,33 +143,39 @@ class TerminalBufferCli(
                 true
             }
 
-            trimmed.startsWith("fill ") -> {
+            parts.firstOrNull() == "fill" && parts.size >= 2 -> {
                 val value = trimmed.substringAfter("fill ")
                 buffer.fillLine(if (value == "empty") null else value.first())
                 true
             }
 
-            trimmed == "append-line" -> {
+            parts.firstOrNull() == "resize" -> {
+                val size = parseTwoInts(parts) ?: return invalidUsage()
+                buffer.resize(newWidth = size.first, newHeight = size.second)
+                true
+            }
+
+            parts == listOf("append-line") -> {
                 buffer.insertEmptyLineAtBottom()
                 true
             }
 
-            trimmed == "clear-screen" -> {
+            parts == listOf("clear-screen") -> {
                 buffer.clearScreen()
                 true
             }
 
-            trimmed == "clear-all" -> {
+            parts == listOf("clear-all") -> {
                 buffer.clearScreenAndScrollback()
                 true
             }
 
-            trimmed == "reset" -> {
+            parts == listOf("reset") -> {
                 buffer = newBuffer()
                 true
             }
 
-            trimmed == "quit" || trimmed == "exit" -> false
+            parts == listOf("quit") || parts == listOf("exit") -> false
             else -> {
                 output.append("Unknown command: $trimmed\n")
                 true
@@ -165,6 +186,16 @@ class TerminalBufferCli(
     private fun invalidUsage(): Boolean {
         output.append("Invalid command usage\n")
         return true
+    }
+
+    private fun parseTwoInts(parts: List<String>): Pair<Int, Int>? {
+        if (parts.size != 3) {
+            return null
+        }
+
+        val first = parts[1].toIntOrNull() ?: return null
+        val second = parts[2].toIntOrNull() ?: return null
+        return first to second
     }
 
     private fun newBuffer(): TerminalBuffer = TerminalBuffer(width = width, height = height, maxScrollbackLines = scrollback)
