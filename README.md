@@ -1,12 +1,12 @@
 # Terminal Buffer
 
 This is my small project for implementing a terminal text buffer in Kotlin.
-The project focuses on the core data structure that a terminal emulator would use
-to store visible text, preserve scrollback history, and track cursor state.
+It focuses on the core data structure a terminal emulator would use to store visible text,
+preserve scrollback, and track cursor state.
 
-It is intentionally a library-first implementation with a small interactive CLI,
-not a full terminal UI. The buffer is the interesting part here: shells write into it,
-and a renderer or richer UI could sit on top later.
+It is intentionally library-first with a small interactive CLI, not a full terminal UI.
+The buffer is the interesting part here: shells write into it, and a renderer or richer UI
+could sit on top later.
 
 ## Architecture
 
@@ -35,16 +35,14 @@ flowchart TD
 ## What exists
 
 - `TerminalBuffer` supports configurable width, height, and maximum scrollback size.
-- The project includes an interactive CLI for manually exercising the buffer.
 - The buffer stores screen content separately from scrollback history.
 - Each cell stores a `CellKind` plus foreground color, background color, and style flags.
 - The buffer tracks current attributes that are applied to future edits.
 - Cursor position can be read, set, and moved with bounds clamping.
 - Editing supports overwrite writes, insert writes, line fill, bottom-line insertion, screen clear, and screen+scrollback clear.
 - Editing also supports `resize(newWidth, newHeight)` with a deterministic no-reflow policy.
-- Content access supports reading cells, lines, visible screen content, and combined history+screen content.
-- Content access also exposes explicit character and attribute lookups for both screen and history positions.
-- The CLI currently supports `help`, `show`, `cursor`, `set-cursor`, `move`, `screen`, `history`, `attrs`, `set-attrs`, `write`, `insert`, `fill`, `append-line`, `clear-screen`, `clear-all`, `resize`, `reset`, and `quit`.
+- Content access supports cells, characters, attributes, lines, visible screen content, and combined history+screen content.
+- The project includes an interactive CLI for manually exercising the buffer.
 - The project includes behavior-focused unit tests with edge cases and boundary conditions.
 
 ## Solution overview
@@ -68,53 +66,8 @@ of cells. Scrollback is stored as a bounded FIFO list of lines. When content mov
 of the screen, the top visible line is moved into scrollback and the oldest scrollback line is
 discarded if the configured capacity is exceeded.
 
-This keeps the architecture clear and easy to test, even if it is not the most optimized possible
+This keeps the architecture clear and easy to test, even if it is not the most optimized
 representation for a real production terminal emulator.
-
-## Trade-offs and decisions
-
-- The project is delivered as a library plus a simple CLI, not a full terminal app. The spec asks for the terminal buffer core data structure, and the tests still act as the main behavior documentation.
-- The model favors readability and clean code over aggressive optimization.
-- Cells are immutable values, which makes tests and behavior easier to reason about.
-- Wide characters are modeled explicitly as grapheme-start plus continuation cells rather than as raw chars in isolated cells.
-- Writing now works at grapheme-cluster level instead of raw code point level.
-- Rendering reconstructs visible text from grapheme-start cells and does not print continuation cells as fake spaces.
-- Screen and history access are exposed through explicit read methods instead of exposing internal collections.
-- There is no ANSI parser, renderer, or escape-sequence handling in this project.
-- The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
-- The implementation now covers common grapheme cases like combining marks, emoji skin-tone modifiers, ZWJ emoji sequences, flags, and wide CJK characters.
-- Resize intentionally does not reflow previously wrapped content; widening preserves existing visual rows instead of reconstructing logical paragraphs from screen state.
-- Full Unicode grapheme-boundary correctness across all edge cases is still a future improvement.
-
-## Resize behavior
-
-Resize stays in the buffer layer and does not attempt paragraph or wrap reflow.
-It works on the current visual rows only and keeps graphemes as the smallest resize unit.
-
-- Width growth preserves the visible graphemes already on a row and pads the rest with empty cells.
-- Width shrink rebuilds each row from left to right, keeps only whole graphemes that still fit, and drops any grapheme that would be cut.
-- Height growth appends blank rows at the bottom of the visible screen.
-- Height shrink moves trimmed top visible rows into scrollback and still enforces the configured scrollback capacity.
-- After resize, the cursor is clamped into the new bounds and normalized left if it lands on a continuation cell.
-
-This is an intentional tradeoff: the buffer keeps resize predictable and grapheme-safe without needing a more complex logical-line model to reconstruct old wraps during width changes.
-
-## Example usage in code
-
-```kotlin
-val buffer = TerminalBuffer(width = 8, height = 3, maxScrollbackLines = 10)
-
-buffer.writeText("hello")
-buffer.setCursorPosition(column = 1, row = 0)
-buffer.insertText("X")
-buffer.fillLine('=')
-
-println(buffer.getScreenContent())
-println(buffer.getHistoryContent())
-```
-
-For concrete behavior examples, see `src/test/kotlin/terminal/buffer/TerminalBufferTest.kt`.
-For CLI behavior, see `src/test/kotlin/terminal/buffer/TerminalBufferCliTest.kt`.
 
 ## Local development
 
@@ -130,14 +83,11 @@ Run the interactive CLI:
 ./gradlew run
 ```
 
-For actual interactive use, Gradle's progress UI can get in the way.
-These are better options:
+For actual interactive use, Gradle's progress UI can get in the way. Better options:
 
 ```sh
 ./gradlew --console=plain -q run
 ```
-
-Or install and run the CLI directly:
 
 ```sh
 ./gradlew installDist
@@ -173,9 +123,46 @@ The CLI is intentionally simple: it is a manual playground for the buffer, not a
 - `set-attrs <fg> <bg> <styles...>` uses names like `default`, `green`, `bright_red`, `bold`, `italic`, and `underline`.
 - `history` prints scrollback plus the current screen, while `screen` prints only the visible screen.
 
+For concrete behavior examples, see `src/test/kotlin/terminal/buffer/TerminalBufferTest.kt`.
+For behavior-doc tests, see `src/test/kotlin/terminal/buffer/TerminalBufferBehaviorTest.kt` and `src/test/kotlin/terminal/buffer/TerminalBufferCliBehaviorTest.kt`.
+
+## Trade-offs and decisions
+
+- The project is delivered as a library plus a simple CLI, not a full terminal app. The spec asks for the terminal buffer core data structure, and the tests still act as the main behavior documentation.
+- The model favors readability and clean code over aggressive optimization.
+- Cells are immutable values, which makes tests and behavior easier to reason about.
+- Wide characters are modeled explicitly as grapheme-start plus continuation cells rather than as raw chars in isolated cells.
+- Writing now works at grapheme-cluster level instead of raw code point level.
+- Rendering reconstructs visible text from grapheme-start cells and does not print continuation cells as fake spaces.
+- Screen and history access are exposed through explicit read methods instead of exposing internal collections.
+- There is no ANSI parser, renderer, or escape-sequence handling in this project.
+- The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
+- The implementation covers common grapheme cases like combining marks, emoji skin-tone modifiers, ZWJ emoji sequences, flags, and wide CJK characters.
+- Resize stays at the buffer layer and does not attempt paragraph or wrap reflow.
+- Width growth preserves visible graphemes and pads with empty cells.
+- Width shrink keeps only whole graphemes that still fit on each visual row.
+- Height growth appends blank rows; height shrink moves trimmed top rows into scrollback.
+- After resize, the cursor is clamped into the new bounds and normalized left off continuation cells.
+- This is intentional: widening preserves existing visual rows instead of reconstructing logical paragraphs from screen state.
+- Full Unicode grapheme-boundary correctness across all edge cases is still a future improvement.
+
+## Example usage in code
+
+```kotlin
+val buffer = TerminalBuffer(width = 8, height = 3, maxScrollbackLines = 10)
+
+buffer.writeText("hello")
+buffer.setCursorPosition(column = 1, row = 0)
+buffer.insertText("X")
+buffer.fillLine('=')
+
+println(buffer.getScreenContent())
+println(buffer.getHistoryContent())
+```
+
 ## Unicode notes
 
-The buffer now stores visible text as grapheme-oriented cells:
+The buffer stores visible text as grapheme-oriented cells:
 
 - `CellKind.Empty`
 - `CellKind.GraphemeStart(text, displayWidth)`
@@ -184,18 +171,11 @@ The buffer now stores visible text as grapheme-oriented cells:
 This means a visible grapheme like `界`, `👍🏻`, `🇵🇱`, or `👨‍👩‍👧‍👦` is treated as one logical write unit.
 If it takes two terminal cells, the buffer stores one grapheme-start cell followed by one continuation cell.
 
-The current implementation includes tests for:
+Covered cases include ASCII text, combining-mark sequences like `é`, emoji modifier sequences like `👍🏻`, ZWJ sequences like `👨‍👩‍👧‍👦`, flag sequences like `🇵🇱`, and wide CJK characters like `界`.
 
-- ASCII text
-- combining-mark sequences like `é`
-- emoji modifier sequences like `👍🏻`
-- ZWJ sequences like `👨‍👩‍👧‍👦`
-- flag sequences like `🇵🇱`
-- wide CJK characters like `界`
+The segmentation and width logic is pragmatic rather than fully Unicode-complete, but it avoids the broken spacing and codepoint-splitting behavior the earlier version had.
 
-The segmentation and width logic is pragmatic rather than fully Unicode-complete, but it avoids the broken spacing and codepoint-splitting behavior that the earlier version had.
-
-One important detail: string reconstruction APIs like `getScreenLine()` return visible grapheme text plus blanks for truly empty cells. Continuation cells are not rendered as extra spaces anymore.
+One important detail: string reconstruction APIs like `getScreenLine()` return visible grapheme text plus blanks for truly empty cells. Continuation cells are not rendered as extra spaces.
 
 ## Layout
 
