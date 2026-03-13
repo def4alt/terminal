@@ -128,22 +128,12 @@ For behavior-doc tests, see `src/test/kotlin/terminal/buffer/TerminalBufferBehav
 
 ## Trade-offs and decisions
 
-- The project is delivered as a library plus a simple CLI, not a full terminal app. The spec asks for the terminal buffer core data structure, and the tests still act as the main behavior documentation.
 - The model favors readability and clean code over aggressive optimization.
 - Cells are immutable values, which makes tests and behavior easier to reason about.
 - Wide characters are modeled explicitly as grapheme-start plus continuation cells rather than as raw chars in isolated cells.
-- Writing now works at grapheme-cluster level instead of raw code point level.
-- Rendering reconstructs visible text from grapheme-start cells and does not print continuation cells as fake spaces.
-- Screen and history access are exposed through explicit read methods instead of exposing internal collections.
-- There is no ANSI parser, renderer, or escape-sequence handling in this project.
 - The CLI is intentionally line-based and lightweight rather than a curses-style TUI.
-- The implementation covers common grapheme cases like combining marks, emoji skin-tone modifiers, ZWJ emoji sequences, flags, and wide CJK characters.
-- Resize stays at the buffer layer and does not attempt paragraph or wrap reflow.
-- Width growth preserves visible graphemes and pads with empty cells.
-- Width shrink keeps only whole graphemes that still fit on each visual row.
-- Height growth appends blank rows; height shrink moves trimmed top rows into scrollback.
-- After resize, the cursor is clamped into the new bounds and normalized left off continuation cells.
-- This is intentional: widening preserves existing visual rows instead of reconstructing logical paragraphs from screen state.
+- There is no ANSI parser, renderer, or escape-sequence handling in this project.
+- Resize is grapheme-safe and predictable, but intentionally does not reflow previously wrapped content.
 - Full Unicode grapheme-boundary correctness across all edge cases is still a future improvement.
 
 ## Example usage in code
